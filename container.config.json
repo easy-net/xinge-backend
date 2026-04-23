@@ -1,0 +1,18 @@
+{
+  "containerPort": 80,
+  "dockerfilePath": "Dockerfile",
+  "buildDir": "",
+  "minNum": 0,
+  "maxNum": 2,
+  "cpu": 0.5,
+  "mem": 1,
+  "policyType": "cpu",
+  "policyThreshold": 60,
+  "envParams": {
+    "APP_ENV": "production",
+    "DATABASE_URL": "sqlite+pysqlite:////tmp/xinge.db",
+    "ENCRYPTION_KEY": "0123456789abcdef0123456789abcdef"
+  },
+  "customLogs": "stdout",
+  "initialDelaySeconds": 2
+}

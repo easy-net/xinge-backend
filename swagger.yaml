@@ -1,0 +1,5968 @@
+basePath: /api/v1
+definitions:
+  handler.ChangePasswordRequest:
+    properties:
+      password:
+        example: NewP@ss123
+        maxLength: 128
+        minLength: 6
+        type: string
+    required:
+    - password
+    type: object
+  handler.CreateOrderRequest:
+    properties:
+      amount:
+        description: 单位：分
+        example: 9900
+        minimum: 1
+        type: integer
+      pay_channel:
+        enum:
+        - wechat
+        - alipay
+        - manual
+        example: manual
+        type: string
+      remark:
+        example: 备注信息
+        type: string
+      student_id:
+        example: 1
+        type: integer
+    required:
+    - amount
+    - student_id
+    type: object
+  handler.CreateUserRequest:
+    properties:
+      password:
+        example: P@ssw0rd
+        maxLength: 128
+        minLength: 6
+        type: string
+      role:
+        enum:
+        - admin
+        - operator
+        - viewer
+        example: operator
+        type: string
+      username:
+        example: alice
+        maxLength: 100
+        minLength: 3
+        type: string
+    required:
+    - password
+    - role
+    - username
+    type: object
+  handler.ImageResultResponse:
+    properties:
+      expires_in:
+        example: 3600
+        type: integer
+      prompt:
+        example: 生成一张展示学生职业规划的图表
+        type: string
+      section_id:
+        example: "1.1"
+        type: string
+      updated_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+      url:
+        example: https://cos.example.com/img/1_1.1.png?sign=xxx
+        type: string
+    type: object
+  handler.ImageTemplateDetailItem:
+    properties:
+      created_by:
+        example: 1
+        type: integer
+      file_data_url:
+        example: data:image/png;base64,iVBORw...
+        type: string
+      file_name:
+        example: template_1.1.png
+        type: string
+      file_type:
+        example: image/png
+        type: string
+      id:
+        example: 1
+        type: integer
+      image_content:
+        example: 描述学生职业规划的配图
+        type: string
+      image_intent:
+        example: default
+        type: string
+      image_title:
+        example: 章节1.1配图
+        type: string
+      section_id:
+        example: "1.1"
+        type: string
+    type: object
+  handler.ImageTemplateListItem:
+    properties:
+      created_by:
+        example: 1
+        type: integer
+      file_name:
+        example: template_1.1.png
+        type: string
+      file_type:
+        example: image/png
+        type: string
+      id:
+        example: 1
+        type: integer
+      image_content:
+        example: 描述学生职业规划的配图
+        type: string
+      image_intent:
+        enum:
+        - default
+        - chart
+        - decision_chart
+        example: default
+        type: string
+      image_title:
+        example: 章节1.1配图
+        type: string
+      section_id:
+        example: "1.1"
+        type: string
+    type: object
+  handler.LoginRequest:
+    properties:
+      password:
+        example: secret123
+        maxLength: 128
+        minLength: 6
+        type: string
+      username:
+        example: admin
+        maxLength: 100
+        minLength: 3
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  handler.LoginResponse:
+    properties:
+      id:
+        example: 1
+        type: integer
+      role:
+        enum:
+        - admin
+        - operator
+        - viewer
+        example: admin
+        type: string
+      token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+    type: object
+  handler.MPAllocateQuotaData:
+    properties:
+      allocated_amount:
+        example: 50
+        type: integer
+      downline_quota:
+        $ref: '#/definitions/handler.MPDownlineQuotaDoc'
+      my_quota:
+        $ref: '#/definitions/handler.MPMyQuotaDoc'
+    type: object
+  handler.MPAllocateQuotaReq:
+    properties:
+      amount:
+        example: 50
+        type: integer
+      downline_user_id:
+        example: 88
+        type: integer
+    type: object
+  handler.MPApplicationStatusData:
+    properties:
+      application_id:
+        example: app_20260420_000042
+        type: string
+      created_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+      reject_reason:
+        type: string
+      status:
+        enum:
+        - pending
+        - approved
+        - rejected
+        example: pending
+        type: string
+      target_level:
+        example: campus
+        type: string
+      updated_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+    type: object
+  handler.MPBindPhoneData:
+    properties:
+      phone_masked:
+        example: 138****8888
+        type: string
+    type: object
+  handler.MPBindPhoneReq:
+    properties:
+      phone_code:
+        example: wx_phone_code_from_getPhoneNumber
+        type: string
+    type: object
+  handler.MPCollegeItem:
+    properties:
+      college_score:
+        example: 99
+        type: integer
+      majors:
+        items:
+          $ref: '#/definitions/handler.MPMajorItem'
+        type: array
+      name:
+        example: 计算机学院
+        type: string
+    type: object
+  handler.MPCommissionItem:
+    properties:
+      amount:
+        example: 990
+        type: integer
+      commission_id:
+        example: comm_001
+        type: string
+      order_created_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+      order_id:
+        example: ORD00000000000000000001
+        type: string
+      rate:
+        example: 0.1
+        type: number
+      status:
+        enum:
+        - settled
+        - unsettled
+        example: unsettled
+        type: string
+    type: object
+  handler.MPCommissionsReq:
+    properties:
+      page:
+        example: 1
+        type: integer
+      page_size:
+        example: 20
+        type: integer
+      status:
+        enum:
+        - settled
+        - unsettled
+        example: unsettled
+        type: string
+    type: object
+  handler.MPCreateOrderData:
+    properties:
+      amount:
+        example: 9900
+        type: integer
+      order_id:
+        example: ORD00000000000000000001
+        type: string
+      payment_params:
+        $ref: '#/definitions/handler.MPPaymentParamsDoc'
+      report_id:
+        example: 101
+        type: integer
+    type: object
+  handler.MPCreateOrderReq:
+    properties:
+      amount:
+        example: 9900
+        type: integer
+      report_id:
+        example: 101
+        type: integer
+    type: object
+  handler.MPCreateReportData:
+    properties:
+      created_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+      name:
+        example: 张三
+        type: string
+      report_id:
+        example: 101
+        type: integer
+      report_type:
+        example: preview
+        type: string
+      status:
+        example: draft
+        type: string
+    type: object
+  handler.MPCreateReportReq:
+    properties:
+      biology_score:
+        example: 75
+        type: integer
+      chemistry_score:
+        example: 80
+        type: integer
+      chinese_score:
+        example: 115
+        type: integer
+      college_name:
+        example: 信息科学技术学院
+        type: string
+      employment_intention:
+        items:
+          type: string
+        type: array
+      english_level:
+        example: CET-6
+        type: string
+      english_score:
+        example: 130
+        type: integer
+      enrollment_year:
+        example: 2021
+        type: integer
+      gaokao_province:
+        example: 广东
+        type: string
+      gaokao_rank:
+        example: 5000
+        type: integer
+      gaokao_score:
+        example: 620
+        type: integer
+      gender:
+        example: 男
+        type: string
+      hukou:
+        example: 广东广州
+        type: string
+      major_name:
+        example: 计算机科学与技术
+        type: string
+      major_satisfaction:
+        example: 一般满意
+        type: string
+      math_score:
+        example: 140
+        type: integer
+      name:
+        example: 张三
+        type: string
+      notes:
+        example: 对数据方向感兴趣
+        type: string
+      physics_score:
+        example: 85
+        type: integer
+      school_name:
+        example: 北京大学
+        type: string
+      study_intention:
+        example: 一定要升
+        type: string
+      study_path_priority:
+        items:
+          type: string
+        type: array
+      target_major:
+        items:
+          type: string
+        type: array
+      target_work_city:
+        items:
+          type: string
+        type: array
+    type: object
+  handler.MPDistributorApplyData:
+    properties:
+      application_id:
+        example: app_20260420_000042
+        type: string
+      created_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+      status:
+        example: pending
+        type: string
+    type: object
+  handler.MPDistributorApplyReq:
+    properties:
+      phone:
+        example: "13800138000"
+        type: string
+      real_name:
+        example: 张三
+        type: string
+      reason:
+        example: 希望代理校园市场
+        type: string
+      target_level:
+        enum:
+        - strategic
+        - city
+        - campus
+        example: campus
+        type: string
+    type: object
+  handler.MPDistributorJoinData:
+    properties:
+      distributor_level:
+        example: campus
+        type: string
+      parent_distributor_id:
+        example: 100
+        type: integer
+      user_id:
+        example: 42
+        type: integer
+    type: object
+  handler.MPDistributorJoinReq:
+    properties:
+      distributor_level:
+        enum:
+        - strategic
+        - city
+        - campus
+        example: campus
+        type: string
+      parent_distributor_id:
+        example: 100
+        type: integer
+    type: object
+  handler.MPDistributorMeData:
+    properties:
+      avatar_url:
+        example: https://thirdwx.qlogo.cn/...
+        type: string
+      created_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+      distributor_level:
+        enum:
+        - strategic
+        - city
+        - campus
+        example: campus
+        type: string
+      downline_total:
+        example: 120
+        type: integer
+      nickname:
+        example: 张三
+        type: string
+      parent_distributor_id:
+        example: 100
+        type: integer
+      quota_remaining:
+        example: 377
+        type: integer
+      quota_total:
+        example: 500
+        type: integer
+      quota_used:
+        example: 123
+        type: integer
+      report_stats:
+        $ref: '#/definitions/handler.MPReportStatsDoc'
+      team_stats:
+        $ref: '#/definitions/handler.MPTeamStatsDoc'
+      total_commission:
+        example: 9900
+        type: integer
+      total_sales_amount:
+        example: 99000
+        type: integer
+      total_withdrawn_amount:
+        example: 6600
+        type: integer
+      unsettled_commission:
+        example: 3300
+        type: integer
+      user_id:
+        example: 42
+        type: integer
+      withdrawable_amount:
+        example: 3300
+        type: integer
+    type: object
+  handler.MPDownlineItem:
+    properties:
+      avatar_url:
+        example: https://...
+        type: string
+      distributor_level:
+        example: campus
+        type: string
+      joined_at:
+        example: "2026-04-15T10:00:00Z"
+        type: string
+      nickname:
+        example: 李四
+        type: string
+      quota_remaining:
+        example: 95
+        type: integer
+      quota_total:
+        example: 100
+        type: integer
+      quota_used:
+        example: 5
+        type: integer
+      report_stats:
+        $ref: '#/definitions/handler.MPReportStatsDoc'
+      user_id:
+        example: 88
+        type: integer
+    type: object
+  handler.MPDownlineQuotaDoc:
+    properties:
+      nickname:
+        example: 李四
+        type: string
+      quota_remaining:
+        example: 145
+        type: integer
+      quota_total:
+        example: 150
+        type: integer
+      user_id:
+        example: 88
+        type: integer
+    type: object
+  handler.MPDownlinesReq:
+    properties:
+      level:
+        enum:
+        - campus
+        - city
+        - strategic
+        example: campus
+        type: string
+      page:
+        example: 1
+        type: integer
+      page_size:
+        example: 20
+        type: integer
+    type: object
+  handler.MPErrorResp:
+    properties:
+      code:
+        example: 1001
+        type: integer
+      message:
+        example: invalid request
+        type: string
+      timestamp:
+        example: 1713600000
+        type: integer
+    type: object
+  handler.MPListMessagesReq:
+    properties:
+      is_read:
+        example: false
+        type: boolean
+      page:
+        example: 1
+        type: integer
+      page_size:
+        example: 20
+        type: integer
+    type: object
+  handler.MPLoginData:
+    properties:
+      has_phone:
+        example: false
+        type: boolean
+      is_new_user:
+        example: true
+        type: boolean
+      role:
+        enum:
+        - user
+        - distributor
+        example: user
+        type: string
+      user_info:
+        $ref: '#/definitions/handler.MPUserInfoDoc'
+    type: object
+  handler.MPLoginReq:
+    properties:
+      distributor_id:
+        example: 100
+        type: integer
+    type: object
+  handler.MPMajorItem:
+    properties:
+      major_score:
+        example: 47
+        type: integer
+      major_type:
+        example: 计算机类
+        type: string
+      name:
+        example: 计算机科学与技术
+        type: string
+    type: object
+  handler.MPMeData:
+    properties:
+      avatar_url:
+        example: https://thirdwx.qlogo.cn/...
+        type: string
+      created_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+      distributor_level:
+        example: campus
+        type: string
+      has_phone:
+        example: true
+        type: boolean
+      is_distributor:
+        example: false
+        type: boolean
+      nickname:
+        example: 张三
+        type: string
+      parent_distributor_id:
+        example: 100
+        type: integer
+      phone_masked:
+        example: 138****8888
+        type: string
+      report_count:
+        example: 2
+        type: integer
+      role:
+        enum:
+        - user
+        - distributor
+        example: user
+        type: string
+      unread_message_count:
+        example: 3
+        type: integer
+      user_id:
+        example: 42
+        type: integer
+    type: object
+  handler.MPMessageItem:
+    properties:
+      content:
+        example: 您的分销商申请已通过审核，欢迎加入！
+        type: string
+      created_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+      is_read:
+        example: false
+        type: boolean
+      message_id:
+        example: 1001
+        type: integer
+      title:
+        example: 申请已通过
+        type: string
+      type:
+        enum:
+        - distributor_approved
+        - distributor_rejected
+        - system
+        example: distributor_approved
+        type: string
+    type: object
+  handler.MPMyQuotaDoc:
+    properties:
+      quota_allocated:
+        example: 200
+        type: integer
+      quota_remaining:
+        example: 150
+        type: integer
+      quota_total:
+        example: 500
+        type: integer
+    type: object
+  handler.MPOrderDetailData:
+    properties:
+      amount:
+        example: 9900
+        type: integer
+      created_at:
+        example: "2026-04-20T09:55:00Z"
+        type: string
+      order_id:
+        example: ORD00000000000000000001
+        type: string
+      paid_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+      report_id:
+        example: 101
+        type: integer
+      status:
+        enum:
+        - pending
+        - paid
+        - failed
+        example: paid
+        type: string
+    type: object
+  handler.MPOrderDetailReq:
+    properties:
+      order_id:
+        example: ORD00000000000000000001
+        type: string
+    type: object
+  handler.MPPageDataDoc:
+    properties:
+      list: {}
+      page:
+        example: 1
+        type: integer
+      page_size:
+        example: 20
+        type: integer
+      page_total:
+        example: 5
+        type: integer
+      total:
+        example: 100
+        type: integer
+    type: object
+  handler.MPPageReq:
+    properties:
+      page:
+        example: 1
+        type: integer
+      page_size:
+        example: 20
+        type: integer
+    type: object
+  handler.MPPageResponse:
+    properties:
+      code:
+        example: 0
+        type: integer
+      data:
+        $ref: '#/definitions/handler.MPPageDataDoc'
+      message:
+        example: ok
+        type: string
+      timestamp:
+        example: 1713600000
+        type: integer
+      user_info:
+        $ref: '#/definitions/handler.MPUserInfoDoc'
+    type: object
+  handler.MPPaymentParamsDoc:
+    properties:
+      nonceStr:
+        example: abc123xyz
+        type: string
+      package:
+        example: prepay_id=wx20260420...
+        type: string
+      paySign:
+        example: RSA签名字符串...
+        type: string
+      signType:
+        example: RSA
+        type: string
+      timeStamp:
+        example: "1713600000"
+        type: string
+    type: object
+  handler.MPPriceDoc:
+    properties:
+      currency:
+        example: CNY
+        type: string
+      current_amount:
+        example: 9900
+        type: integer
+      current_amount_display:
+        example: "99.00"
+        type: string
+      description:
+        example: 完整版学业规划报告
+        type: string
+      discount_rate:
+        example: 0.5
+        type: number
+      is_limited_time:
+        example: true
+        type: boolean
+      limited_time_end:
+        example: "2026-05-01T00:00:00Z"
+        type: string
+      original_amount:
+        example: 19900
+        type: integer
+      original_amount_display:
+        example: "199.00"
+        type: string
+    type: object
+  handler.MPProductConfigData:
+    properties:
+      price:
+        $ref: '#/definitions/handler.MPPriceDoc'
+      user_stats:
+        $ref: '#/definitions/handler.MPUserStatsDoc'
+    type: object
+  handler.MPPublicResponse:
+    properties:
+      code:
+        example: 0
+        type: integer
+      data: {}
+      message:
+        example: ok
+        type: string
+      timestamp:
+        example: 1713600000
+        type: integer
+    type: object
+  handler.MPReadMessageData:
+    properties:
+      is_read:
+        example: true
+        type: boolean
+      message_id:
+        example: 1001
+        type: integer
+    type: object
+  handler.MPReadMessageReq:
+    properties:
+      message_id:
+        example: 1001
+        type: integer
+    type: object
+  handler.MPReportIDReq:
+    properties:
+      report_id:
+        example: 101
+        type: integer
+    type: object
+  handler.MPReportLinksData:
+    properties:
+      expires_in:
+        example: 3600
+        type: integer
+      full_h5_url:
+        example: "null"
+        type: string
+      is_paid:
+        example: true
+        type: boolean
+      pdf_url:
+        example: "null"
+        type: string
+      preview_h5_url:
+        example: https://cos.example.com/h5/101_preview.html?sign=xxx
+        type: string
+      report_id:
+        example: 101
+        type: integer
+    type: object
+  handler.MPReportListItem:
+    properties:
+      created_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+      fail_stage:
+        example: "null"
+        type: string
+      is_paid:
+        example: true
+        type: boolean
+      name:
+        example: 张三
+        type: string
+      order_id:
+        example: ORD00000000000000000001
+        type: string
+      order_status:
+        example: paid
+        type: string
+      paid_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+      report_id:
+        example: 101
+        type: integer
+      report_type:
+        enum:
+        - preview
+        - full
+        example: full
+        type: string
+      school_name:
+        example: 北京大学
+        type: string
+      status:
+        enum:
+        - draft
+        - unpaid
+        - paid
+        - collecting
+        - planning
+        - generating
+        - analyzing
+        - completed
+        - failed
+        example: completed
+        type: string
+      updated_at:
+        example: "2026-04-20T11:00:00Z"
+        type: string
+    type: object
+  handler.MPReportProgressDoc:
+    properties:
+      completion_rate:
+        example: 0.4
+        type: number
+      current_stage:
+        example: generating
+        type: string
+      done_steps:
+        example: 4
+        type: integer
+      total_steps:
+        example: 10
+        type: integer
+    type: object
+  handler.MPReportStatsDoc:
+    properties:
+      paid_count:
+        example: 10
+        type: integer
+      total_count:
+        example: 15
+        type: integer
+      unpaid_count:
+        example: 5
+        type: integer
+    type: object
+  handler.MPReportStatusData:
+    properties:
+      fail_stage:
+        type: string
+      progress:
+        $ref: '#/definitions/handler.MPReportProgressDoc'
+      report_id:
+        example: 101
+        type: integer
+      report_type:
+        example: full
+        type: string
+      status:
+        example: generating
+        type: string
+    type: object
+  handler.MPResponse:
+    properties:
+      code:
+        example: 0
+        type: integer
+      data: {}
+      message:
+        example: ok
+        type: string
+      timestamp:
+        example: 1713600000
+        type: integer
+      user_info:
+        $ref: '#/definitions/handler.MPUserInfoDoc'
+    type: object
+  handler.MPSchoolDetailData:
+    properties:
+      city:
+        example: 北京
+        type: string
+      city_level:
+        example: 一线
+        type: string
+      colleges:
+        items:
+          $ref: '#/definitions/handler.MPCollegeItem'
+        type: array
+      is_211:
+        example: true
+        type: boolean
+      is_985:
+        example: true
+        type: boolean
+      is_double_first_class:
+        example: true
+        type: boolean
+      name:
+        example: 北京大学
+        type: string
+      school_level_tag:
+        example: 全国强平台
+        type: string
+      school_score:
+        example: 99
+        type: integer
+    type: object
+  handler.MPSchoolDetailReq:
+    properties:
+      school_name:
+        example: 北京大学
+        type: string
+    type: object
+  handler.MPSchoolItem:
+    properties:
+      city:
+        example: 北京
+        type: string
+      city_level:
+        enum:
+        - 一线
+        - 新一线
+        - 二线
+        - 其他
+        example: 一线
+        type: string
+      is_211:
+        example: true
+        type: boolean
+      is_985:
+        example: true
+        type: boolean
+      is_double_first_class:
+        example: true
+        type: boolean
+      name:
+        example: 北京大学
+        type: string
+      school_level_tag:
+        example: 全国强平台
+        type: string
+      school_score:
+        example: 99
+        type: integer
+    type: object
+  handler.MPSchoolListReq:
+    properties:
+      city:
+        example: 北京
+        type: string
+      is_211:
+        type: boolean
+      is_985:
+        type: boolean
+      keyword:
+        example: 北京
+        type: string
+      page:
+        example: 1
+        type: integer
+      page_size:
+        example: 20
+        type: integer
+    type: object
+  handler.MPTeamStatsDoc:
+    properties:
+      campus_count:
+        example: 5
+        type: integer
+      city_count:
+        example: 2
+        type: integer
+      user_count:
+        example: 113
+        type: integer
+    type: object
+  handler.MPUpdateMeData:
+    properties:
+      user_id:
+        example: 42
+        type: integer
+    type: object
+  handler.MPUpdateMeReq:
+    properties:
+      avatar_url:
+        example: https://thirdwx.qlogo.cn/...
+        type: string
+      nickname:
+        example: 张三
+        type: string
+    type: object
+  handler.MPUserInfoDoc:
+    properties:
+      open_id:
+        example: oXXXXXXXXX
+        type: string
+      user_id:
+        example: 42
+        type: integer
+    type: object
+  handler.MPUserStatsDoc:
+    properties:
+      display_count:
+        example: 12345
+        type: integer
+      display_text:
+        example: 已有12345位同学使用
+        type: string
+    type: object
+  handler.MPWithdrawData:
+    properties:
+      amount:
+        example: 3300
+        type: integer
+      created_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+      status:
+        example: pending
+        type: string
+      withdraw_id:
+        example: wdraw_20260420_000042
+        type: string
+    type: object
+  handler.MPWithdrawReq:
+    properties:
+      account_name:
+        example: 张三
+        type: string
+      amount:
+        example: 3300
+        type: integer
+      bank_account:
+        example: 6214xxxxxxxxxxxx
+        type: string
+      bank_name:
+        example: 招商银行
+        type: string
+    type: object
+  handler.MPWithdrawalItem:
+    properties:
+      amount:
+        example: 3300
+        type: integer
+      bank_account_masked:
+        example: '****1234'
+        type: string
+      bank_name:
+        example: 招商银行
+        type: string
+      completed_at:
+        example: "2026-04-21T10:00:00Z"
+        type: string
+      created_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+      status:
+        enum:
+        - pending
+        - processing
+        - completed
+        - rejected
+        example: completed
+        type: string
+      withdraw_id:
+        example: wdraw_001
+        type: string
+    type: object
+  handler.PDFDownloadResponse:
+    properties:
+      expires_in:
+        example: 3600
+        type: integer
+      generated_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+      url:
+        example: https://cos.example.com/pdf/1.pdf?sign=xxx
+        type: string
+    type: object
+  handler.PayOrderRequest:
+    properties:
+      node_ids:
+        description: 可选：只生成部分节点
+        example:
+        - section_1.1
+        - section_1.2
+        items:
+          type: string
+        type: array
+      trade_no:
+        description: 第三方流水号，人工标记可为空
+        example: T20260420001
+        type: string
+    type: object
+  handler.PayOrderResponse:
+    properties:
+      task_count:
+        example: 5
+        type: integer
+      task_ids:
+        example:
+        - 1
+        - 2
+        - 3
+        items:
+          type: integer
+        type: array
+    type: object
+  handler.ProfileRequest:
+    properties:
+      data:
+        type: object
+      name:
+        example: 北京大学
+        maxLength: 255
+        minLength: 1
+        type: string
+    required:
+    - data
+    - name
+    type: object
+  handler.ReportStatusResponse:
+    properties:
+      completion_rate:
+        example: 0.54
+        type: number
+      done:
+        example: 20
+        type: integer
+      failed:
+        example: 5
+        type: integer
+      pending:
+        example: 10
+        type: integer
+      running:
+        example: 2
+        type: integer
+      student_id:
+        example: 1
+        type: integer
+      total:
+        example: 37
+        type: integer
+    type: object
+  handler.SaveRequest:
+    properties:
+      content:
+        description: Content is the full prompt template text. Supports Go template
+          syntax with student data variables.
+        example: 根据学生 {{.Name}} 的高考成绩生成聚焦分析...
+        type: string
+    required:
+    - content
+    type: object
+  handler.StudentInfo:
+    properties:
+      academic_readiness_score:
+        description: 计算得分（由规则引擎填充）
+        example: 75
+        type: integer
+      biology_score:
+        description: 生物成绩
+        example: 75
+        type: integer
+      chemistry_score:
+        description: 化学成绩
+        example: 80
+        type: integer
+      chinese_score:
+        description: 各科成绩（高考科目，3+X体系）
+        example: 115
+        type: integer
+      college_name:
+        description: 学院名称
+        example: 信息学院
+        type: string
+      employment_intention:
+        description: 就业意愿（央国企/公务员/事业编/名企大厂）
+        example: 名企大厂
+        type: string
+      employment_intention_score:
+        description: 就业意愿得分
+        example: 60
+        type: integer
+      english_level:
+        description: 英语等级证书（varchar，与高考英语分区分）
+        example: CET-6
+        type: string
+      english_score:
+        description: 英语成绩（高考，int）
+        example: 130
+        type: integer
+      enrollment_year:
+        description: 入学与高考信息
+        example: 2024
+        type: integer
+      gaokao_province:
+        description: 高考省份
+        example: 广东
+        type: string
+      gaokao_rank:
+        description: 高考位次
+        example: 5000
+        type: integer
+      gaokao_score:
+        description: 高考分数
+        example: 620
+        type: integer
+      gender:
+        description: 性别
+        example: 男
+        type: string
+      geography_score:
+        description: 地理成绩
+        example: 78
+        type: integer
+      graduate_intention_score:
+        description: 升学意愿得分
+        example: 80
+        type: integer
+      history_score:
+        description: 历史成绩
+        example: 82
+        type: integer
+      hukou:
+        description: 其他信息
+        example: 广东广州
+        type: string
+      major_name:
+        description: 专业名称
+        example: 计算机科学与技术
+        type: string
+      major_satisfaction:
+        description: 意愿与偏好
+        example: 一般满意
+        type: string
+      math_score:
+        description: 数学成绩
+        example: 140
+        type: integer
+      name:
+        description: 学生姓名
+        example: 张三
+        maxLength: 255
+        minLength: 1
+        type: string
+      notes:
+        description: 其他备注
+        example: 对数据方向感兴趣
+        type: string
+      physics_score:
+        description: 物理成绩
+        example: 85
+        type: integer
+      politics_score:
+        description: 政治成绩
+        example: 70
+        type: integer
+      school_name:
+        description: 院校信息
+        example: 北京大学
+        type: string
+      score_breakdown:
+        description: 计算明细（含 llm_trace）
+        type: object
+      student_id:
+        description: 基本信息
+        example: STU2024001
+        type: string
+      study_intention:
+        description: 升学意愿（一定要升/看情况/不考虑）
+        example: 一定要升
+        type: string
+      study_path_priority:
+        description: 国内读研/留学/不考虑
+        example: 国内读研
+        type: string
+      target_major:
+        description: 拟转专业
+        example: 软件工程
+        type: string
+      target_work_city:
+        description: 未来期望城市
+        example: 北京
+        type: string
+      technology_score:
+        description: 科技成绩（浙江适配）
+        example: 0
+        type: integer
+    required:
+    - name
+    type: object
+  handler.StudentResponseDoc:
+    description: Student profile response with all fields expanded.
+    properties:
+      created_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+      data:
+        $ref: '#/definitions/handler.StudentInfo'
+      id:
+        example: 1
+        type: integer
+      name:
+        example: 张三
+        type: string
+      report_status:
+        enum:
+        - unpaid
+        - paid
+        - generating
+        - completed
+        - failed
+        example: completed
+        type: string
+      updated_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+    type: object
+  handler.SubmitRequest:
+    properties:
+      node_ids:
+        description: |-
+          NodeIDs selects which template nodes to run. Omit or pass empty array to run the full report.
+          Valid node ID examples: "prefill_module", "section_1.1", "image_1.1", "pdf_module"
+        example:
+        - section_1.1
+        - image_1.1
+        items:
+          type: string
+        type: array
+    type: object
+  handler.SubmitResponse:
+    properties:
+      student_id:
+        example: 1
+        type: integer
+      task_count:
+        example: 37
+        type: integer
+      task_ids:
+        example:
+        - 1
+        - 2
+        - 3
+        items:
+          type: integer
+        type: array
+    type: object
+  handler.SubmitSingleRequest:
+    properties:
+      section_id:
+        example: "1.1"
+        type: string
+      student_id:
+        example: 1
+        type: integer
+      task_type:
+        enum:
+        - prefill_module
+        - generate_section
+        - generate_image
+        - generate_pdf
+        example: generate_section
+        type: string
+    required:
+    - student_id
+    - task_type
+    type: object
+  handler.SubmitSingleResponse:
+    properties:
+      main_task_id:
+        example: 42
+        type: integer
+      student_id:
+        example: 1
+        type: integer
+      sub_task_id:
+        example: 43
+        type: integer
+    type: object
+  handler.TaskWithProgress:
+    properties:
+      cancel_requested:
+        example: false
+        type: boolean
+      completion_rate:
+        example: 0.54
+        type: number
+      created_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+      depends_on:
+        items:
+          type: integer
+        type: array
+      error:
+        example: LLM timeout
+        type: string
+      finished_at:
+        example: "2026-04-20T10:10:00Z"
+        type: string
+      id:
+        example: 42
+        type: integer
+      parent_id:
+        example: 0
+        type: integer
+      retry_count:
+        example: 0
+        type: integer
+      section_id:
+        example: "1.1"
+        type: string
+      started_at:
+        example: "2026-04-20T10:05:00Z"
+        type: string
+      status:
+        enum:
+        - pending
+        - running
+        - done
+        - failed
+        example: running
+        type: string
+      student_id:
+        example: 1
+        type: integer
+      sub_done:
+        example: 20
+        type: integer
+      sub_total:
+        example: 37
+        type: integer
+      template_id:
+        example: 1
+        type: integer
+      type:
+        enum:
+        - generate_report
+        - prefill_module
+        - generate_section
+        - generate_image
+        - generate_pdf
+        example: generate_report
+        type: string
+    type: object
+  handler.UpdateUserRequest:
+    properties:
+      role:
+        enum:
+        - admin
+        - operator
+        - viewer
+        example: viewer
+        type: string
+    required:
+    - role
+    type: object
+  model.CollegeProfile:
+    properties:
+      created_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+      data:
+        type: object
+      id:
+        example: 1
+        type: integer
+      name:
+        example: 信息学院
+        type: string
+      school_id:
+        example: 1
+        type: integer
+      school_name:
+        example: 北京大学
+        type: string
+      updated_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+    type: object
+  model.MajorTemplate:
+    properties:
+      created_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+      data:
+        type: object
+      id:
+        example: 1
+        type: integer
+      name:
+        example: 计算机科学与技术
+        type: string
+      updated_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+    type: object
+  model.Order:
+    properties:
+      amount:
+        description: 单位：分
+        example: 9900
+        type: integer
+      created_at:
+        example: "2026-04-20T09:00:00Z"
+        type: string
+      id:
+        example: 1
+        type: integer
+      paid_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+      pay_channel:
+        description: wechat/alipay/manual
+        example: manual
+        type: string
+      remark:
+        example: 年度套餐
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/model.OrderStatus'
+        enum:
+        - pending
+        - paid
+        - failed
+        example: paid
+      student_id:
+        example: 42
+        type: integer
+      trade_no:
+        example: T20260420001
+        type: string
+      updated_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+    type: object
+  model.OrderStatus:
+    enum:
+    - pending
+    - paid
+    - failed
+    type: string
+    x-enum-comments:
+      OrderStatusFailed: 支付失败
+      OrderStatusPaid: 已支付，触发报告生成
+      OrderStatusPending: 待支付
+    x-enum-descriptions:
+    - 待支付
+    - 已支付，触发报告生成
+    - 支付失败
+    x-enum-varnames:
+    - OrderStatusPending
+    - OrderStatusPaid
+    - OrderStatusFailed
+  model.ReportSection:
+    properties:
+      content:
+        example: 本段内容由AI生成...
+        type: string
+      id:
+        example: 1
+        type: integer
+      prompt:
+        description: 每次发给 LLM 的原始 prompt
+        example: 你是一位高校学业规划顾问...
+        type: string
+      section_id:
+        example: "1.1"
+        type: string
+      student_id:
+        example: 42
+        type: integer
+      updated_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+    type: object
+  model.ReportTemplate:
+    properties:
+      content:
+        description: 'omitempty: 树列表时不返回大字段'
+        example: 你是一位高校学业规划顾问...
+        type: string
+      created_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+      created_by:
+        example: 1
+        type: integer
+      id:
+        example: 1
+        type: integer
+      section_id:
+        example: "1.1"
+        type: string
+      section_name:
+        example: 综合评估
+        type: string
+      status:
+        description: active|archived
+        enum:
+        - active
+        - archived
+        example: active
+        type: string
+      template_type:
+        description: text|image|pdf
+        enum:
+        - text
+        - image
+        - pdf
+        example: text
+        type: string
+      version:
+        example: 1
+        type: integer
+    type: object
+  model.RiskPromptConfig:
+    properties:
+      created_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+      data:
+        type: object
+      id:
+        example: 1
+        type: integer
+      major_template_id:
+        example: 3
+        type: integer
+      name:
+        example: 计算机科学与技术-风险提示
+        type: string
+      updated_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+    type: object
+  model.RuleEngineResult:
+    properties:
+      created_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+      data:
+        type: object
+      id:
+        example: 1
+        type: integer
+      name:
+        example: 王五-规则结果
+        type: string
+      student_id:
+        example: 42
+        type: integer
+      updated_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+    type: object
+  model.SchoolMajorAdjustment:
+    properties:
+      college_id:
+        example: 2
+        type: integer
+      college_name:
+        example: 信息学院
+        type: string
+      created_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+      data:
+        type: object
+      has_master_point:
+        example: true
+        type: boolean
+      has_phd_point:
+        example: false
+        type: boolean
+      id:
+        example: 1
+        type: integer
+      is_key_major:
+        example: true
+        type: boolean
+      major_template_id:
+        example: 3
+        type: integer
+      name:
+        example: 北京大学-计算机
+        type: string
+      school_id:
+        example: 1
+        type: integer
+      school_name:
+        example: 北京大学
+        type: string
+      updated_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+    type: object
+  model.SchoolProfile:
+    properties:
+      created_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+      data:
+        type: object
+      id:
+        example: 1
+        type: integer
+      name:
+        example: 北京大学
+        type: string
+      updated_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+    type: object
+  model.SkillModuleConfig:
+    properties:
+      created_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+      data:
+        type: object
+      id:
+        example: 1
+        type: integer
+      major_template_id:
+        example: 3
+        type: integer
+      name:
+        example: 计算机科学与技术-能力模块
+        type: string
+      updated_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+    type: object
+  model.Task:
+    properties:
+      cancel_requested:
+        description: set by HTTP Cancel; checked by executor
+        example: false
+        type: boolean
+      created_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+      depends_on:
+        items:
+          type: integer
+        type: array
+      error:
+        example: LLM timeout
+        type: string
+      finished_at:
+        example: "2026-04-20T10:10:00Z"
+        type: string
+      id:
+        example: 1
+        type: integer
+      parent_id:
+        example: 1
+        type: integer
+      retry_count:
+        example: 0
+        type: integer
+      section_id:
+        example: "1.1"
+        type: string
+      started_at:
+        example: "2026-04-20T10:05:00Z"
+        type: string
+      status:
+        enum:
+        - pending
+        - running
+        - done
+        - failed
+        example: done
+        type: string
+      student_id:
+        example: 42
+        type: integer
+      template_id:
+        example: 1
+        type: integer
+      type:
+        enum:
+        - generate_report
+        - prefill_module
+        - generate_section
+        - generate_image
+        - generate_pdf
+        example: generate_section
+        type: string
+    type: object
+  model.User:
+    properties:
+      created_at:
+        example: "2026-04-20T10:00:00Z"
+        type: string
+      id:
+        example: 1
+        type: integer
+      role:
+        description: admin | user
+        enum:
+        - admin
+        - user
+        example: admin
+        type: string
+      username:
+        example: admin
+        type: string
+    type: object
+  response.ErrorResponse:
+    properties:
+      code:
+        example: 400
+        type: integer
+      error:
+        example: field 'name' is required
+        type: string
+      message:
+        example: invalid request
+        type: string
+    type: object
+  response.PageData:
+    properties:
+      list: {}
+      page:
+        example: 1
+        type: integer
+      page_size:
+        example: 20
+        type: integer
+      total:
+        example: 100
+        type: integer
+    type: object
+  response.Response:
+    properties:
+      code:
+        example: 0
+        type: integer
+      data: {}
+      message:
+        example: ok
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: AI 大学生职业规划报告生成系统
+  title: XGT Report API
+  version: "1.0"
+paths:
+  /admin/adjustments:
+    get:
+      parameters:
+      - description: Filter by school ID
+        in: query
+        name: school_id
+        type: integer
+      - description: Filter by college ID
+        in: query
+        name: college_id
+        type: integer
+      - description: Filter by name
+        in: query
+        name: name
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/response.PageData'
+                  - properties:
+                      list:
+                        items:
+                          $ref: '#/definitions/model.SchoolMajorAdjustment'
+                        type: array
+                    type: object
+              type: object
+      security:
+      - BearerAuth: []
+      summary: List adjustment records
+      tags:
+      - admin/adjustments
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Record data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.SchoolMajorAdjustment'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Create school-major adjustment record
+      tags:
+      - admin/adjustments
+  /admin/adjustments/{id}:
+    delete:
+      parameters:
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Delete adjustment record
+      tags:
+      - admin/adjustments
+    get:
+      parameters:
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.SchoolMajorAdjustment'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get adjustment record by ID
+      tags:
+      - admin/adjustments
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Record data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Update adjustment record
+      tags:
+      - admin/adjustments
+  /admin/colleges:
+    get:
+      parameters:
+      - description: Filter by school ID
+        in: query
+        name: school_id
+        type: integer
+      - description: Filter by name
+        in: query
+        name: name
+        type: string
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Page size (default 20)
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/response.PageData'
+                  - properties:
+                      list:
+                        items:
+                          $ref: '#/definitions/model.CollegeProfile'
+                        type: array
+                    type: object
+              type: object
+      security:
+      - BearerAuth: []
+      summary: List college profiles
+      tags:
+      - admin/colleges
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Profile data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.CollegeProfile'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create college profile
+      tags:
+      - admin/colleges
+  /admin/colleges/{id}:
+    delete:
+      parameters:
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Delete college profile
+      tags:
+      - admin/colleges
+    get:
+      parameters:
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.CollegeProfile'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get college profile by ID
+      tags:
+      - admin/colleges
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Profile data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update college profile
+      tags:
+      - admin/colleges
+  /admin/image-templates:
+    get:
+      description: Returns all image templates without file binary data. Use GET /admin/image-templates/{id}
+        to get the file as a base64 data URL. Templates are ordered by id ascending.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/handler.ImageTemplateListItem'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: List image templates
+      tags:
+      - admin/image-templates
+    post:
+      consumes:
+      - multipart/form-data
+      description: 'Creates a new image template. All fields are submitted as multipart
+        form data. The file field is optional; if provided it will be stored as the
+        reference image for this template. image_intent controls how the LLM generates
+        the image: ''default'' = standard prompt, ''chart'' = data chart, ''decision_chart''
+        = two-step JSON extraction then chart rendering.'
+      parameters:
+      - description: Template title
+        in: formData
+        name: image_title
+        required: true
+        type: string
+      - description: Prompt content / description for LLM
+        in: formData
+        name: image_content
+        type: string
+      - description: Associated section ID (e.g. 1.1)
+        in: formData
+        name: section_id
+        type: string
+      - description: 'Image generation intent: default/chart/decision_chart'
+        in: formData
+        name: image_intent
+        type: string
+      - description: Reference image file (PNG/JPG)
+        in: formData
+        name: file
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.ImageTemplateListItem'
+              type: object
+        "400":
+          description: Missing image_title or file read error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create image template (multipart/form-data)
+      tags:
+      - admin/image-templates
+  /admin/image-templates/{id}:
+    delete:
+      description: Permanently deletes the image template and its associated file
+        data. This action is irreversible.
+      parameters:
+      - description: Image template ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Image template not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete image template
+      tags:
+      - admin/image-templates
+    get:
+      description: Returns the full image template record. file_data_url is a base64-encoded
+        data URL (e.g. data:image/png;base64,...) suitable for direct use in an <img>
+        src attribute. The field is omitted if no file has been uploaded.
+      parameters:
+      - description: Image template ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.ImageTemplateDetailItem'
+              type: object
+        "404":
+          description: Image template not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get image template by id (includes file as base64 data URL)
+      tags:
+      - admin/image-templates
+    put:
+      consumes:
+      - multipart/form-data
+      description: Updates an existing image template. Only supplied fields are changed.
+        If a new file is uploaded it replaces the previous reference image. If no
+        file is uploaded the existing file is preserved.
+      parameters:
+      - description: Image template ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Template title
+        in: formData
+        name: image_title
+        type: string
+      - description: Prompt content / description for LLM
+        in: formData
+        name: image_content
+        type: string
+      - description: Associated section ID (e.g. 1.1)
+        in: formData
+        name: section_id
+        type: string
+      - description: 'Image generation intent: default/chart/decision_chart'
+        in: formData
+        name: image_intent
+        type: string
+      - description: New reference image file (PNG/JPG)
+        in: formData
+        name: file
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Updated template
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.ImageTemplateListItem'
+              type: object
+        "404":
+          description: Image template not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update image template (multipart/form-data)
+      tags:
+      - admin/image-templates
+  /admin/image-templates/{id}/file:
+    get:
+      description: Returns the raw binary file stored for this template. The Content-Type
+        header matches the stored file type (e.g. image/png). Use this endpoint to
+        download or preview the reference image directly.
+      parameters:
+      - description: Image template ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: 'Binary file content with Content-Disposition: inline'
+        "404":
+          description: File not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Download image template file (binary)
+      tags:
+      - admin/image-templates
+  /admin/majors:
+    get:
+      parameters:
+      - description: Filter by name
+        in: query
+        name: name
+        type: string
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Page size (default 20)
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/response.PageData'
+                  - properties:
+                      list:
+                        items:
+                          $ref: '#/definitions/model.MajorTemplate'
+                        type: array
+                    type: object
+              type: object
+      security:
+      - BearerAuth: []
+      summary: List major templates
+      tags:
+      - admin/majors
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Profile data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.MajorTemplate'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create major template
+      tags:
+      - admin/majors
+  /admin/majors/{id}:
+    delete:
+      parameters:
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Delete major template
+      tags:
+      - admin/majors
+    get:
+      parameters:
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.MajorTemplate'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get major template by ID
+      tags:
+      - admin/majors
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Profile data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update major template
+      tags:
+      - admin/majors
+  /admin/orders:
+    get:
+      parameters:
+      - description: 按学员ID筛选
+        in: query
+        name: student_id
+        type: integer
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页大小
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/response.PageData'
+                  - properties:
+                      list:
+                        items:
+                          $ref: '#/definitions/model.Order'
+                        type: array
+                    type: object
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 查询订单列表（管理后台）
+      tags:
+      - orders
+  /admin/risk-configs:
+    get:
+      parameters:
+      - description: Filter by name
+        in: query
+        name: name
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/response.PageData'
+                  - properties:
+                      list:
+                        items:
+                          $ref: '#/definitions/model.RiskPromptConfig'
+                        type: array
+                    type: object
+              type: object
+      security:
+      - BearerAuth: []
+      summary: List risk prompt configs
+      tags:
+      - admin/risk-configs
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Record data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.RiskPromptConfig'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Create risk prompt config
+      tags:
+      - admin/risk-configs
+  /admin/risk-configs/{id}:
+    delete:
+      parameters:
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Delete risk prompt config
+      tags:
+      - admin/risk-configs
+    get:
+      parameters:
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.RiskPromptConfig'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get risk prompt config by ID
+      tags:
+      - admin/risk-configs
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Record data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Update risk prompt config
+      tags:
+      - admin/risk-configs
+  /admin/rule-results:
+    get:
+      parameters:
+      - description: Filter by name
+        in: query
+        name: name
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/response.PageData'
+                  - properties:
+                      list:
+                        items:
+                          $ref: '#/definitions/model.RuleEngineResult'
+                        type: array
+                    type: object
+              type: object
+      security:
+      - BearerAuth: []
+      summary: List rule engine results
+      tags:
+      - admin/rule-results
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Record data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.RuleEngineResult'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Create rule engine result
+      tags:
+      - admin/rule-results
+  /admin/rule-results/{id}:
+    delete:
+      parameters:
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Delete rule engine result
+      tags:
+      - admin/rule-results
+    get:
+      parameters:
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.RuleEngineResult'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get rule engine result by ID
+      tags:
+      - admin/rule-results
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Record data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Update rule engine result
+      tags:
+      - admin/rule-results
+  /admin/schools:
+    get:
+      parameters:
+      - description: Filter by name
+        in: query
+        name: name
+        type: string
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Page size (default 20)
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/response.PageData'
+                  - properties:
+                      list:
+                        items:
+                          $ref: '#/definitions/model.SchoolProfile'
+                        type: array
+                    type: object
+              type: object
+      security:
+      - BearerAuth: []
+      summary: List school profiles
+      tags:
+      - admin/schools
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Profile data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.SchoolProfile'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create school profile
+      tags:
+      - admin/schools
+  /admin/schools/{id}:
+    delete:
+      parameters:
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Delete school profile
+      tags:
+      - admin/schools
+    get:
+      parameters:
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.SchoolProfile'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get school profile by ID
+      tags:
+      - admin/schools
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Profile data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update school profile
+      tags:
+      - admin/schools
+  /admin/skill-configs:
+    get:
+      parameters:
+      - description: Filter by name
+        in: query
+        name: name
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/response.PageData'
+                  - properties:
+                      list:
+                        items:
+                          $ref: '#/definitions/model.SkillModuleConfig'
+                        type: array
+                    type: object
+              type: object
+      security:
+      - BearerAuth: []
+      summary: List skill module configs
+      tags:
+      - admin/skill-configs
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Record data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.SkillModuleConfig'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Create skill module config
+      tags:
+      - admin/skill-configs
+  /admin/skill-configs/{id}:
+    delete:
+      parameters:
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Delete skill module config
+      tags:
+      - admin/skill-configs
+    get:
+      parameters:
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.SkillModuleConfig'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get skill module config by ID
+      tags:
+      - admin/skill-configs
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Record data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Update skill module config
+      tags:
+      - admin/skill-configs
+  /admin/students:
+    get:
+      parameters:
+      - description: Filter by name
+        in: query
+        name: name
+        type: string
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Page size (default 20)
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/response.PageData'
+                  - properties:
+                      list:
+                        items:
+                          $ref: '#/definitions/handler.StudentResponseDoc'
+                        type: array
+                    type: object
+              type: object
+      security:
+      - BearerAuth: []
+      summary: List student profiles
+      tags:
+      - admin/students
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Student info
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.StudentInfo'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.StudentResponseDoc'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create student profile
+      tags:
+      - admin/students
+  /admin/students/{id}:
+    delete:
+      parameters:
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Delete student profile
+      tags:
+      - admin/students
+    get:
+      parameters:
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.StudentResponseDoc'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get student profile by ID
+      tags:
+      - admin/students
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Record ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Student info
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.StudentInfo'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update student profile
+      tags:
+      - admin/students
+  /admin/task-template:
+    get:
+      description: Returns the task template tree stored in the settings table (key=task_template).
+        The template defines all nodes (prefill, sections, images, pdf) and their
+        dependency graph used when submitting a report. The response data is the raw
+        JSON value (not wrapped in a typed struct).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: data contains the raw template JSON object
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: Get current task template JSON
+      tags:
+      - tasks
+    put:
+      consumes:
+      - application/json
+      description: Replaces the task template in the settings table. The value field
+        must be a valid JSON string representing a TaskTemplate object (nodes array
+        with id, name, type, section_id, depends_on, enabled fields). Invalid JSON
+        will be rejected with 400.
+      parameters:
+      - description: '{\'
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: data is null on success
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  type: object
+              type: object
+        "400":
+          description: Missing value field or invalid JSON
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Save task template JSON
+      tags:
+      - tasks
+  /admin/tasks:
+    get:
+      description: Returns paginated main tasks (parent_id=NULL) across all students.
+        Filter by student_id and/or status. Results are sorted by created_at descending.
+        Sub-tasks are not included; use GET /tasks/{id}/subs for those.
+      parameters:
+      - description: Filter by student ID
+        in: query
+        name: student_id
+        type: integer
+      - description: Filter by status
+        enum:
+        - pending
+        - running
+        - done
+        - failed
+        in: query
+        name: status
+        type: string
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Page size 1-100 (default 20)
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/response.PageData'
+                  - properties:
+                      list:
+                        items:
+                          $ref: '#/definitions/model.Task'
+                        type: array
+                    type: object
+              type: object
+      security:
+      - BearerAuth: []
+      summary: List all main tasks (admin)
+      tags:
+      - tasks
+  /admin/tasks/single:
+    post:
+      consumes:
+      - application/json
+      description: Creates a main task (generate_report) and one sub-task for the
+        given task_type + section_id. Useful for regenerating a single chapter from
+        the template management page without rerunning the full pipeline. The sub-task
+        is queued immediately and picked up by the next available worker.
+      parameters:
+      - description: Task details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.SubmitSingleRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.SubmitSingleResponse'
+              type: object
+        "400":
+          description: Missing required fields or invalid task_type
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Trigger a single sub-task for a specific section
+      tags:
+      - reports
+  /admin/template-versions/{id}/rollback:
+    post:
+      description: Activates the specified version and archives the current active
+        version. The version ID can be found via GET /admin/templates/{section_id}/{type}/versions.
+        After rollback the specified version becomes the active one used in future
+        report generation.
+      parameters:
+      - description: Template version ID to rollback to
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Rollback successful
+        "404":
+          description: Template version not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Rollback to a specific template version
+      tags:
+      - admin/templates
+  /admin/templates:
+    get:
+      description: Returns all active templates grouped as a tree by section. Each
+        leaf node contains section_id, template_type (text|image|pdf), version, status,
+        and created_at. The content field is omitted in the tree view to reduce payload
+        size — use GET /admin/templates/{section_id}/{type} to fetch the full content.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of active templates (content omitted)
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.ReportTemplate'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Get template tree view
+      tags:
+      - admin/templates
+  /admin/templates/{section_id}/{type}:
+    get:
+      description: Returns the currently active template version for the given section
+        and type. The content field contains the full prompt template text. If no
+        active version exists for the given combination, 404 is returned.
+      parameters:
+      - description: Section ID (e.g. 1.1, 2.3)
+        in: path
+        name: section_id
+        required: true
+        type: string
+      - description: Template type
+        enum:
+        - text
+        - image
+        - pdf
+        in: path
+        name: type
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Active template with full content
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.ReportTemplate'
+              type: object
+        "404":
+          description: No active template found for this section+type
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get active template for section+type
+      tags:
+      - admin/templates
+    post:
+      consumes:
+      - application/json
+      description: Creates a new version for the given section+type and automatically
+        archives the previous active version. Version numbers are auto-incremented.
+        The new version becomes immediately active and will be used in the next report
+        generation.
+      parameters:
+      - description: Section ID (e.g. 1.1)
+        in: path
+        name: section_id
+        required: true
+        type: string
+      - description: Template type
+        enum:
+        - text
+        - image
+        - pdf
+        in: path
+        name: type
+        required: true
+        type: string
+      - description: Template content
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.SaveRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Newly created active version
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.ReportTemplate'
+              type: object
+        "400":
+          description: Missing content
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Save new template version
+      tags:
+      - admin/templates
+  /admin/templates/{section_id}/{type}/versions:
+    get:
+      description: Returns all versions (active and archived) for the given section
+        and template type, sorted by version descending. Use this to browse history
+        and find a version ID for rollback.
+      parameters:
+      - description: Section ID (e.g. 1.1)
+        in: path
+        name: section_id
+        required: true
+        type: string
+      - description: Template type
+        enum:
+        - text
+        - image
+        - pdf
+        in: path
+        name: type
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.ReportTemplate'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: List all versions for a section+type
+      tags:
+      - admin/templates
+  /admin/users:
+    get:
+      description: Admin lists all users with pagination. Returns users sorted by
+        id ascending. Password hash is never included in the response.
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Page size 1-100 (default 20)
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/response.PageData'
+                  - properties:
+                      list:
+                        items:
+                          $ref: '#/definitions/model.User'
+                        type: array
+                    type: object
+              type: object
+      security:
+      - BearerAuth: []
+      summary: List users
+      tags:
+      - users
+    post:
+      consumes:
+      - application/json
+      description: 'Admin creates a new user account. Role must be one of: admin (full
+        access), operator (can submit/manage tasks), viewer (read-only). Username
+        must be unique.'
+      parameters:
+      - description: User info
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created user (password field omitted)
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.User'
+              type: object
+        "400":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "409":
+          description: Username already exists
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create user
+      tags:
+      - users
+  /admin/users/{id}:
+    delete:
+      description: Admin permanently deletes a user. You cannot delete your own account
+        (returns 403). This action is irreversible.
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Invalid user id
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Cannot delete yourself
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete user
+      tags:
+      - users
+    get:
+      description: Returns a single user's information. Password hash is never included.
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.User'
+              type: object
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get user by ID
+      tags:
+      - users
+    put:
+      consumes:
+      - application/json
+      description: 'Admin changes a user''s role. Role must be one of: admin, operator,
+        viewer.'
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: New role
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Updated user object
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.User'
+              type: object
+        "400":
+          description: Invalid role value
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update user role
+      tags:
+      - users
+  /admin/users/{id}/password:
+    put:
+      consumes:
+      - application/json
+      description: Admin resets any user's password. The new password is immediately
+        hashed with bcrypt. The user's existing JWT tokens remain valid until they
+        expire.
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: New password (min 6, max 128 chars)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: data is null on success
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  type: object
+              type: object
+        "400":
+          description: Invalid id or weak password
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Change user password
+      tags:
+      - users
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: 'Authenticate with username and password. Returns a signed JWT
+        Bearer token valid for 24 hours. Include the token in subsequent requests
+        as: Authorization: Bearer <token>'
+      parameters:
+      - description: Login credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.LoginResponse'
+              type: object
+        "400":
+          description: Missing or invalid fields
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Wrong username or password
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Login
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      description: Invalidates the current session. JWT is stateless so the server
+        does not maintain a blocklist by default — the client must discard the token.
+        A Redis-based revocation list can be added here if needed.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: data is null
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  type: object
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Logout
+      tags:
+      - auth
+  /auth/me:
+    get:
+      description: Returns the authenticated user's profile based on the JWT token
+        in the Authorization header. Password hash is never returned.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.User'
+              type: object
+        "401":
+          description: Token missing or invalid
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get current user info
+      tags:
+      - auth
+  /mp/auth/bind-phone:
+    post:
+      consumes:
+      - application/json
+      description: 首次登录后引导用户授权手机号。小程序调用 wx.getPhoneNumber() 拿到 phone_code，后端解密并 AES-256-GCM
+        加密存库，对外返回脱敏手机号。
+      parameters:
+      - description: wx.login() 临时 code
+        in: header
+        name: X-Login-Code
+        required: true
+        type: string
+      - description: 系统版本
+        in: header
+        name: X-System-Version
+        required: true
+        type: string
+      - description: 设备标识
+        in: header
+        name: X-Device-UUID
+        required: true
+        type: string
+      - description: phone_code
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MPBindPhoneReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.MPResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.MPBindPhoneData'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+      summary: 绑定手机号
+      tags:
+      - mp/auth
+  /mp/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: 小程序调用 wx.login() 拿到 login_code 放入 Header X-Login-Code，后端 code2session
+        换取 openid，查找或新建用户。扫分销商码进入时 body 传 distributor_id。
+      parameters:
+      - description: wx.login() 返回的临时 code
+        in: header
+        name: X-Login-Code
+        required: true
+        type: string
+      - description: 系统版本，如 iOS 17.0
+        in: header
+        name: X-System-Version
+        required: true
+        type: string
+      - description: 设备唯一标识
+        in: header
+        name: X-Device-UUID
+        required: true
+        type: string
+      - description: 可选：分销商 ID
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/handler.MPLoginReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.MPResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.MPLoginData'
+              type: object
+        "400":
+          description: 微信 login_code 无效
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+      summary: 微信登录 / 自动注册
+      tags:
+      - mp/auth
+  /mp/config/product:
+    post:
+      consumes:
+      - application/json
+      description: 返回当前报告价格、折扣信息、限时优惠结束时间以及展示用使用人数。无需 X-Login-Code。
+      parameters:
+      - description: 空对象
+        in: body
+        name: body
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.MPPublicResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.MPProductConfigData'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+      summary: 获取报告价格与使用人数（公开接口）
+      tags:
+      - mp/orders
+  /mp/distributor/application/status:
+    post:
+      consumes:
+      - application/json
+      description: 返回当前用户最新一条申请记录的状态。
+      parameters:
+      - description: wx.login() 临时 code
+        in: header
+        name: X-Login-Code
+        required: true
+        type: string
+      - description: 系统版本
+        in: header
+        name: X-System-Version
+        required: true
+        type: string
+      - description: 设备标识
+        in: header
+        name: X-Device-UUID
+        required: true
+        type: string
+      - description: 空对象
+        in: body
+        name: body
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.MPResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.MPApplicationStatusData'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "404":
+          description: 暂无申请记录
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+      summary: 查询分销商申请状态
+      tags:
+      - mp/distributor
+  /mp/distributor/apply:
+    post:
+      consumes:
+      - application/json
+      description: 普通用户主动提交申请，等待管理后台人工审核。审核结果通过消息通知。
+      parameters:
+      - description: wx.login() 临时 code
+        in: header
+        name: X-Login-Code
+        required: true
+        type: string
+      - description: 系统版本
+        in: header
+        name: X-System-Version
+        required: true
+        type: string
+      - description: 设备标识
+        in: header
+        name: X-Device-UUID
+        required: true
+        type: string
+      - description: 申请信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MPDistributorApplyReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.MPResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.MPDistributorApplyData'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "409":
+          description: 审核中，请勿重复申请
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+      summary: 主动申请成为分销商（需审核）
+      tags:
+      - mp/distributor
+  /mp/distributor/commissions:
+    post:
+      consumes:
+      - application/json
+      description: 按订单维度查看每笔分账记录，支持已结算/未结算筛选。
+      parameters:
+      - description: wx.login() 临时 code
+        in: header
+        name: X-Login-Code
+        required: true
+        type: string
+      - description: 系统版本
+        in: header
+        name: X-System-Version
+        required: true
+        type: string
+      - description: 设备标识
+        in: header
+        name: X-Device-UUID
+        required: true
+        type: string
+      - description: 分页和状态筛选
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/handler.MPCommissionsReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.MPPageResponse'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/handler.MPPageDataDoc'
+                  - properties:
+                      list:
+                        items:
+                          $ref: '#/definitions/handler.MPCommissionItem'
+                        type: array
+                    type: object
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+      summary: 获取佣金明细
+      tags:
+      - mp/distributor
+  /mp/distributor/downlines:
+    post:
+      consumes:
+      - application/json
+      description: 返回当前分销商的直接下级分销商列表，支持级别筛选和分页。
+      parameters:
+      - description: wx.login() 临时 code
+        in: header
+        name: X-Login-Code
+        required: true
+        type: string
+      - description: 系统版本
+        in: header
+        name: X-System-Version
+        required: true
+        type: string
+      - description: 设备标识
+        in: header
+        name: X-Device-UUID
+        required: true
+        type: string
+      - description: 分页和级别筛选
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/handler.MPDownlinesReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.MPPageResponse'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/handler.MPPageDataDoc'
+                  - properties:
+                      list:
+                        items:
+                          $ref: '#/definitions/handler.MPDownlineItem'
+                        type: array
+                    type: object
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "403":
+          description: 无分销商权限
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+      summary: 获取直接下线列表
+      tags:
+      - mp/distributor
+  /mp/distributor/join:
+    post:
+      consumes:
+      - application/json
+      description: 用户扫分销商二维码进入，登录成功后调用此接口绑定上下级关系。无需审核，直接成为对应级别分销商。
+      parameters:
+      - description: wx.login() 临时 code
+        in: header
+        name: X-Login-Code
+        required: true
+        type: string
+      - description: 系统版本
+        in: header
+        name: X-System-Version
+        required: true
+        type: string
+      - description: 设备标识
+        in: header
+        name: X-Device-UUID
+        required: true
+        type: string
+      - description: 上级 ID 和分销商级别
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MPDistributorJoinReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.MPResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.MPDistributorJoinData'
+              type: object
+        "400":
+          description: 上级分销商不存在
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "409":
+          description: 已是分销商
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+      summary: 扫码绑定成为分销商（无需审核）
+      tags:
+      - mp/distributor
+  /mp/distributor/me:
+    post:
+      consumes:
+      - application/json
+      description: 返回当前分销商的配额、佣金、报告数、团队统计等全量信息。
+      parameters:
+      - description: wx.login() 临时 code
+        in: header
+        name: X-Login-Code
+        required: true
+        type: string
+      - description: 系统版本
+        in: header
+        name: X-System-Version
+        required: true
+        type: string
+      - description: 设备标识
+        in: header
+        name: X-Device-UUID
+        required: true
+        type: string
+      - description: 空对象
+        in: body
+        name: body
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.MPResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.MPDistributorMeData'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "403":
+          description: 无分销商权限
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+      summary: 获取分销商详情
+      tags:
+      - mp/distributor
+  /mp/distributor/quota/allocate:
+    post:
+      consumes:
+      - application/json
+      description: 上级分销商将自己持有的配额分配给直接下级。分配后立即生效且不可撤回。campus 级无权分配。
+      parameters:
+      - description: wx.login() 临时 code
+        in: header
+        name: X-Login-Code
+        required: true
+        type: string
+      - description: 系统版本
+        in: header
+        name: X-System-Version
+        required: true
+        type: string
+      - description: 设备标识
+        in: header
+        name: X-Device-UUID
+        required: true
+        type: string
+      - description: 下级用户 ID 和分配数量
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MPAllocateQuotaReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.MPResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.MPAllocateQuotaData'
+              type: object
+        "400":
+          description: 配额不足
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "403":
+          description: 不是直接下级 / campus 级无权
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+      summary: 向直接下级分配配额
+      tags:
+      - mp/distributor
+  /mp/distributor/team:
+    post:
+      consumes:
+      - application/json
+      description: 返回按级别分组的下线列表，支持分页。strategic 返回战略分销+城市分销；city 只返回城市分销；campus 返回空分组。
+      parameters:
+      - description: wx.login() 临时 code
+        in: header
+        name: X-Login-Code
+        required: true
+        type: string
+      - description: 系统版本
+        in: header
+        name: X-System-Version
+        required: true
+        type: string
+      - description: 设备标识
+        in: header
+        name: X-Device-UUID
+        required: true
+        type: string
+      - description: 分页参数
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/handler.MPPageReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.MPResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "403":
+          description: 无分销商权限
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+      summary: 获取团队全貌（按级别分组）
+      tags:
+      - mp/distributor
+  /mp/distributor/withdraw:
+    post:
+      consumes:
+      - application/json
+      description: 分销商将待结算佣金申请打款到银行卡，创建提现记录待管理审核和打款。
+      parameters:
+      - description: wx.login() 临时 code
+        in: header
+        name: X-Login-Code
+        required: true
+        type: string
+      - description: 系统版本
+        in: header
+        name: X-System-Version
+        required: true
+        type: string
+      - description: 设备标识
+        in: header
+        name: X-Device-UUID
+        required: true
+        type: string
+      - description: 提现金额和银行信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MPWithdrawReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.MPResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.MPWithdrawData'
+              type: object
+        "400":
+          description: 可提现金额不足
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "403":
+          description: 无分销商权限
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+      summary: 申请提现
+      tags:
+      - mp/distributor
+  /mp/distributor/withdrawals:
+    post:
+      consumes:
+      - application/json
+      description: 返回当前分销商的提现记录列表，分页，按创建时间倒序。
+      parameters:
+      - description: wx.login() 临时 code
+        in: header
+        name: X-Login-Code
+        required: true
+        type: string
+      - description: 系统版本
+        in: header
+        name: X-System-Version
+        required: true
+        type: string
+      - description: 设备标识
+        in: header
+        name: X-Device-UUID
+        required: true
+        type: string
+      - description: 分页参数
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/handler.MPPageReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.MPPageResponse'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/handler.MPPageDataDoc'
+                  - properties:
+                      list:
+                        items:
+                          $ref: '#/definitions/handler.MPWithdrawalItem'
+                        type: array
+                    type: object
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+      summary: 获取提现历史
+      tags:
+      - mp/distributor
+  /mp/messages/list:
+    post:
+      consumes:
+      - application/json
+      description: 返回当前用户的消息列表，支持 is_read 筛选（不传则返回全部）和分页。
+      parameters:
+      - description: wx.login() 临时 code
+        in: header
+        name: X-Login-Code
+        required: true
+        type: string
+      - description: 系统版本
+        in: header
+        name: X-System-Version
+        required: true
+        type: string
+      - description: 设备标识
+        in: header
+        name: X-Device-UUID
+        required: true
+        type: string
+      - description: 分页和已读筛选
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/handler.MPListMessagesReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.MPPageResponse'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/handler.MPPageDataDoc'
+                  - properties:
+                      list:
+                        items:
+                          $ref: '#/definitions/handler.MPMessageItem'
+                        type: array
+                    type: object
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+      summary: 获取消息列表
+      tags:
+      - mp/messages
+  /mp/messages/read:
+    post:
+      consumes:
+      - application/json
+      description: 将指定消息标记为已读。只能操作当前用户自己的消息。
+      parameters:
+      - description: wx.login() 临时 code
+        in: header
+        name: X-Login-Code
+        required: true
+        type: string
+      - description: 系统版本
+        in: header
+        name: X-System-Version
+        required: true
+        type: string
+      - description: 设备标识
+        in: header
+        name: X-Device-UUID
+        required: true
+        type: string
+      - description: message_id
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MPReadMessageReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.MPResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.MPReadMessageData'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+      summary: 标记消息已读
+      tags:
+      - mp/messages
+  /mp/orders:
+    post:
+      consumes:
+      - application/json
+      description: 创建订单并返回微信支付参数。前端用 payment_params 直接调用 wx.requestPayment() 唤起支付。
+      parameters:
+      - description: wx.login() 临时 code
+        in: header
+        name: X-Login-Code
+        required: true
+        type: string
+      - description: 系统版本
+        in: header
+        name: X-System-Version
+        required: true
+        type: string
+      - description: 设备标识
+        in: header
+        name: X-Device-UUID
+        required: true
+        type: string
+      - description: report_id 和支付金额
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MPCreateOrderReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.MPResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.MPCreateOrderData'
+              type: object
+        "400":
+          description: amount 不匹配 / 已有待支付订单
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "404":
+          description: 报告不存在
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "409":
+          description: 重复订单
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+      summary: 创建订单并获取支付参数
+      tags:
+      - mp/orders
+  /mp/orders/detail:
+    post:
+      consumes:
+      - application/json
+      description: wx.requestPayment 回调不可靠，支付完成后主动查询确认最终状态。
+      parameters:
+      - description: wx.login() 临时 code
+        in: header
+        name: X-Login-Code
+        required: true
+        type: string
+      - description: 系统版本
+        in: header
+        name: X-System-Version
+        required: true
+        type: string
+      - description: 设备标识
+        in: header
+        name: X-Device-UUID
+        required: true
+        type: string
+      - description: order_id
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MPOrderDetailReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.MPResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.MPOrderDetailData'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+      summary: 查询订单详情
+      tags:
+      - mp/orders
+  /mp/orders/notify/wechat:
+    post:
+      description: ⚠️ 此接口由微信支付服务器调用，小程序前端不调用。后端验签→ AES-GCM 解密 → 校验金额/订单号/状态 → 更新订单为
+        paid → 计算分账 → 触发报告生成。
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 微信成功响应
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      summary: 微信支付回调通知（微信服务器回调）
+      tags:
+      - mp/orders
+  /mp/reports:
+    post:
+      consumes:
+      - application/json
+      description: 用户填写表单后提交，创建一份新报告，状态为 draft。一个用户可创建多份报告。
+      parameters:
+      - description: wx.login() 临时 code
+        in: header
+        name: X-Login-Code
+        required: true
+        type: string
+      - description: 系统版本
+        in: header
+        name: X-System-Version
+        required: true
+        type: string
+      - description: 设备标识
+        in: header
+        name: X-Device-UUID
+        required: true
+        type: string
+      - description: 报告表单数据
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MPCreateReportReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.MPResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.MPCreateReportData'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+      summary: 创建报告（提交表单）
+      tags:
+      - mp/reports
+  /mp/reports/detail:
+    post:
+      consumes:
+      - application/json
+      description: 返回报告所有表单字段 + 状态 + 订单信息，用于回显编辑页面。
+      parameters:
+      - description: wx.login() 临时 code
+        in: header
+        name: X-Login-Code
+        required: true
+        type: string
+      - description: 系统版本
+        in: header
+        name: X-System-Version
+        required: true
+        type: string
+      - description: 设备标识
+        in: header
+        name: X-Device-UUID
+        required: true
+        type: string
+      - description: report_id
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MPReportIDReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.MPResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "403":
+          description: 无权访问
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "404":
+          description: 报告不存在
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+      summary: 获取报告详情（回显表单）
+      tags:
+      - mp/reports
+  /mp/reports/links:
+    post:
+      consumes:
+      - application/json
+      description: 一次接口返回所有链接。未付费时 full_h5_url 和 pdf_url 为 null。所有链接为 COS 预签名 URL，有效期
+        1 小时。
+      parameters:
+      - description: wx.login() 临时 code
+        in: header
+        name: X-Login-Code
+        required: true
+        type: string
+      - description: 系统版本
+        in: header
+        name: X-System-Version
+        required: true
+        type: string
+      - description: 设备标识
+        in: header
+        name: X-Device-UUID
+        required: true
+        type: string
+      - description: report_id
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MPReportIDReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.MPResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.MPReportLinksData'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+      summary: 获取报告链接（预览 H5 / 完整 H5 / PDF）
+      tags:
+      - mp/reports
+  /mp/reports/list:
+    post:
+      consumes:
+      - application/json
+      description: 分页返回当前用户的所有报告，按创建时间倒序。每个报告附带最新订单信息。
+      parameters:
+      - description: wx.login() 临时 code
+        in: header
+        name: X-Login-Code
+        required: true
+        type: string
+      - description: 系统版本
+        in: header
+        name: X-System-Version
+        required: true
+        type: string
+      - description: 设备标识
+        in: header
+        name: X-Device-UUID
+        required: true
+        type: string
+      - description: 分页参数
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/handler.MPPageReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.MPPageResponse'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/handler.MPPageDataDoc'
+                  - properties:
+                      list:
+                        items:
+                          $ref: '#/definitions/handler.MPReportListItem'
+                        type: array
+                    type: object
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+      summary: 获取我的报告列表
+      tags:
+      - mp/reports
+  /mp/reports/status:
+    post:
+      consumes:
+      - application/json
+      description: 前端每 3~5 秒轮询，直到 status 为 completed 或 failed。progress.completion_rate
+        用于进度条。
+      parameters:
+      - description: wx.login() 临时 code
+        in: header
+        name: X-Login-Code
+        required: true
+        type: string
+      - description: 系统版本
+        in: header
+        name: X-System-Version
+        required: true
+        type: string
+      - description: 设备标识
+        in: header
+        name: X-Device-UUID
+        required: true
+        type: string
+      - description: report_id
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MPReportIDReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.MPResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.MPReportStatusData'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+      summary: 查询报告生成进度
+      tags:
+      - mp/reports
+  /mp/schools/detail:
+    post:
+      consumes:
+      - application/json
+      description: 根据学校名称，返回该校全量学院+专业嵌套数据。前端本地做「选学院 → 选专业」级联联动，无需再次请求后端。
+      parameters:
+      - description: 学校名称
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MPSchoolDetailReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.MPPublicResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.MPSchoolDetailData'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "404":
+          description: 学校不存在
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+      summary: 获取学校详情（含学院和专业，公开接口）
+      tags:
+      - mp/schools
+  /mp/schools/list:
+    post:
+      consumes:
+      - application/json
+      description: 支持关键词、城市、985/211 等条件检索，分页返回学校基础信息列表（不含学院和专业）。适用于「填写报告时搜索学校」场景。
+      parameters:
+      - description: 搜索条件
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/handler.MPSchoolListReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.MPPublicResponse'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/handler.MPPageDataDoc'
+                  - properties:
+                      list:
+                        items:
+                          $ref: '#/definitions/handler.MPSchoolItem'
+                        type: array
+                    type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+      summary: 搜索学校列表（公开接口）
+      tags:
+      - mp/schools
+  /mp/users/me:
+    post:
+      consumes:
+      - application/json
+      description: 返回登录用户的全量信息，含报告数、未读消息数、分销商状态。
+      parameters:
+      - description: wx.login() 临时 code
+        in: header
+        name: X-Login-Code
+        required: true
+        type: string
+      - description: 系统版本
+        in: header
+        name: X-System-Version
+        required: true
+        type: string
+      - description: 设备标识
+        in: header
+        name: X-Device-UUID
+        required: true
+        type: string
+      - description: 空对象
+        in: body
+        name: body
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.MPResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.MPMeData'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+      summary: 获取当前用户信息
+      tags:
+      - mp/users
+  /mp/users/me/update:
+    post:
+      consumes:
+      - application/json
+      description: 更新当前登录用户的昵称和头像 URL。
+      parameters:
+      - description: wx.login() 临时 code
+        in: header
+        name: X-Login-Code
+        required: true
+        type: string
+      - description: 系统版本
+        in: header
+        name: X-System-Version
+        required: true
+        type: string
+      - description: 设备标识
+        in: header
+        name: X-Device-UUID
+        required: true
+        type: string
+      - description: 昵称和头像
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.MPUpdateMeReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.MPResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.MPUpdateMeData'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.MPErrorResp'
+      summary: 更新用户信息（昵称 / 头像）
+      tags:
+      - mp/users
+  /orders:
+    post:
+      consumes:
+      - application/json
+      description: 为学员创建待支付订单，返回订单ID供后续确认支付。
+      parameters:
+      - description: 创建订单请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CreateOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Order'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建支付订单
+      tags:
+      - orders
+  /orders/{id}:
+    get:
+      parameters:
+      - description: 订单ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Order'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 查询订单详情
+      tags:
+      - orders
+  /orders/{id}/pay:
+    post:
+      consumes:
+      - application/json
+      description: 标记订单为已支付，自动提交学员的报告生成任务。支持可选节点过滤（node_ids）。
+      parameters:
+      - description: 订单ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 可选：指定流水号和节点过滤
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/handler.PayOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.PayOrderResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 确认订单支付并触发报告生成
+      tags:
+      - orders
+  /reports/{student_id}/images/{section_id}:
+    get:
+      description: Returns a COS pre-signed URL (valid 1h) and the prompt used to
+        generate the image
+      parameters:
+      - description: Student ID
+        in: path
+        name: student_id
+        required: true
+        type: integer
+      - description: Section ID (e.g. 1.1)
+        in: path
+        name: section_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.ImageResultResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get image result for a section (presigned URL + prompt)
+      tags:
+      - reports
+  /reports/{student_id}/orders:
+    get:
+      parameters:
+      - description: 学员ID
+        in: path
+        name: student_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.Order'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 查询学员的所有订单
+      tags:
+      - orders
+  /reports/{student_id}/pdf:
+    get:
+      description: Returns a COS pre-signed URL valid for 1 hour
+      parameters:
+      - description: Student ID
+        in: path
+        name: student_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.PDFDownloadResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get pre-signed PDF download URL
+      tags:
+      - reports
+  /reports/{student_id}/sections:
+    get:
+      description: Returns all completed report sections for the given student, ordered
+        by section_id. Each item contains section_id, content (full generated text),
+        the LLM prompt used, and updated_at timestamp.
+      parameters:
+      - description: Student ID
+        in: path
+        name: student_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.ReportSection'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: List all generated sections for a student
+      tags:
+      - reports
+  /reports/{student_id}/sections/{section_id}:
+    get:
+      description: Returns the generated text content and the original LLM prompt
+        for a single section. Only the latest generated version is stored (UPSERT).
+        Returns 404 if the section has not yet been generated.
+      parameters:
+      - description: Student ID
+        in: path
+        name: student_id
+        required: true
+        type: integer
+      - description: Section ID (e.g. 1.1, 2.3)
+        in: path
+        name: section_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.ReportSection'
+              type: object
+        "404":
+          description: Section not yet generated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a specific report section
+      tags:
+      - reports
+  /reports/{student_id}/status:
+    get:
+      description: Returns task counts and completion_rate (done/total) for a student's
+        report. completion_rate is 0 if total=0.
+      parameters:
+      - description: Student ID
+        in: path
+        name: student_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.ReportStatusResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get report generation status
+      tags:
+      - reports
+  /reports/{student_id}/submit:
+    post:
+      consumes:
+      - application/json
+      description: Creates the full task DAG for a student report based on the active
+        task template. Each node in the template becomes a sub-task with dependency
+        relationships automatically resolved. Pass node_ids to selectively run only
+        specific sub-tasks (e.g. regenerate one section); omit node_ids to run the
+        complete report pipeline. The main task (generate_report) is always created
+        as the parent. Tasks are processed asynchronously by background workers.
+      parameters:
+      - description: Student ID
+        in: path
+        name: student_id
+        required: true
+        type: integer
+      - description: 'Optional: select specific node IDs to run'
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/handler.SubmitRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.SubmitResponse'
+              type: object
+        "400":
+          description: Invalid student_id
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Task creation failed
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Submit report generation request
+      tags:
+      - reports
+  /reports/{student_id}/tasks:
+    get:
+      description: Returns paginated main tasks (parent_id=NULL) for the given student,
+        optionally filtered by status. Each item includes sub_total (total sub-tasks),
+        sub_done (completed sub-tasks), and completion_rate (sub_done/sub_total, 0
+        if no sub-tasks). Use GET /tasks/{id}/subs to fetch the sub-tasks of a specific
+        main task.
+      parameters:
+      - description: Student ID
+        in: path
+        name: student_id
+        required: true
+        type: integer
+      - description: Filter by status
+        enum:
+        - pending
+        - running
+        - done
+        - failed
+        in: query
+        name: status
+        type: string
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Page size 1-100 (default 20)
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/response.PageData'
+                  - properties:
+                      list:
+                        items:
+                          $ref: '#/definitions/handler.TaskWithProgress'
+                        type: array
+                    type: object
+              type: object
+      security:
+      - BearerAuth: []
+      summary: List main tasks for a student
+      tags:
+      - tasks
+  /tasks/{id}:
+    delete:
+      description: Sets cancel_requested=true on the task. Pending tasks will never
+        be picked up. Running tasks check this flag at each key step and abort early.
+        Already-completed tasks return 409 Conflict.
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Task cancellation requested
+        "404":
+          description: Task not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "409":
+          description: Task already completed, cannot cancel
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Cancel a task
+      tags:
+      - tasks
+    get:
+      description: Returns the full task record including type, status, section_id,
+        depends_on (array of prerequisite task IDs), error message, retry_count, and
+        timing fields (created_at, started_at, finished_at).
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Task'
+              type: object
+        "404":
+          description: Task not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a single task
+      tags:
+      - tasks
+  /tasks/{id}/retry:
+    post:
+      description: Resets the task status back to pending so it will be picked up
+        by a worker on the next poll. Pass with_parent=true to also reset the parent
+        main-task (useful when the main task is stuck in failed state after all sub-tasks
+        are retried).
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Also reset the parent main-task to pending (default false)
+        in: query
+        name: with_parent
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: data is null on success
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  type: object
+              type: object
+        "400":
+          description: Invalid task id
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Reset failed
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Retry a failed task (reset to pending)
+      tags:
+      - tasks
+  /tasks/{id}/subs:
+    get:
+      description: Returns all sub-tasks belonging to the given parent task. Each
+        sub-task has a type (prefill_module, generate_section, generate_image, generate_pdf),
+        section_id, depends_on (array of task IDs this task waits for), status, and
+        timing fields.
+      parameters:
+      - description: Parent main-task ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.Task'
+                  type: array
+              type: object
+        "400":
+          description: Invalid task id
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List sub-tasks of a main task
+      tags:
+      - tasks
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
