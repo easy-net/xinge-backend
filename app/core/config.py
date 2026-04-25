@@ -1,12 +1,27 @@
 import os
 from dataclasses import dataclass
 from functools import lru_cache
+from pathlib import Path
 
 from app.core.errors import ValidationError
 
-from dotenv import load_dotenv
 
-load_dotenv()
+def load_local_dotenv(path: str = ".env") -> None:
+    env_path = Path(path)
+    if not env_path.exists():
+        return
+
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        os.environ.setdefault(key, value)
+
+
+load_local_dotenv()
 
 
 @dataclass
@@ -27,6 +42,7 @@ class Settings:
     wechat_platform_cert_path: str = ""
     wechat_platform_serial_no: str = ""
     wechat_callback_tolerance: int = 300
+    auth_token_ttl_seconds: int = 86400
     dev_auth_bypass: bool = False
     log_mp_report_payloads: bool = False
     log_all_api_payloads: bool = False
@@ -87,6 +103,7 @@ def get_settings() -> Settings:
         wechat_platform_cert_path=os.getenv("WECHAT_PLATFORM_CERT_PATH", ""),
         wechat_platform_serial_no=os.getenv("WECHAT_PLATFORM_SERIAL_NO", ""),
         wechat_callback_tolerance=int(os.getenv("WECHAT_CALLBACK_TOLERANCE", "300")),
+        auth_token_ttl_seconds=int(os.getenv("AUTH_TOKEN_TTL_SECONDS", "86400")),
         dev_auth_bypass=os.getenv("DEV_AUTH_BYPASS", "false").lower() == "true",
         log_mp_report_payloads=os.getenv("LOG_MP_REPORT_PAYLOADS", "false").lower() == "true",
         log_all_api_payloads=os.getenv("LOG_ALL_API_PAYLOADS", "false").lower() == "true",

@@ -9,6 +9,12 @@ def auth_headers(login_code="login-code-user-1", device_uuid="device-1"):
     }
 
 
+def bearer_headers(access_token):
+    return {
+        "Authorization": "Bearer {}".format(access_token),
+    }
+
+
 def create_logged_in_report(client):
     client.post("/api/v1/mp/auth/login", headers=auth_headers(), json={})
     return client.post(
@@ -105,3 +111,31 @@ def test_create_report_logs_request_and_response_when_enabled(client, test_setti
     assert "'name': '张*'" in request_log
     assert "<redacted:10 chars>" in request_log
     assert "report_id" in response_log
+
+
+def test_reports_create_and_list_accept_bearer_token(client):
+    login_response = client.post("/api/v1/mp/auth/login", headers=auth_headers(), json={})
+    access_token = login_response.json()["data"]["access_token"]
+
+    create_response = client.post(
+        "/api/v1/mp/reports",
+        headers=bearer_headers(access_token),
+        json={
+            "name": "张三",
+            "school_name": "北京大学",
+            "study_path_priority": ["国内读研"],
+            "employment_intention": ["名企大厂"],
+            "target_major": ["软件工程"],
+            "target_work_city": ["北京"],
+        },
+    )
+    assert create_response.status_code == 201
+    report_id = create_response.json()["data"]["report_id"]
+
+    list_response = client.post(
+        "/api/v1/mp/reports/list",
+        headers=bearer_headers(access_token),
+        json={"page": 1, "page_size": 20},
+    )
+    assert list_response.status_code == 200
+    assert any(item["report_id"] == report_id for item in list_response.json()["data"]["list"])

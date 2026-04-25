@@ -10,7 +10,10 @@ def configure_logging(settings) -> None:
     )
 
 
-def log_startup_environment(settings) -> None:
+def log_startup_environment(settings, *, wechat_auth_client=None) -> None:
     logger = logging.getLogger(__name__)
     logger.info("startup.settings %s", asdict(settings))
-    logger.info("startup.environ %s", dict(sorted(os.environ.items())))
+    if wechat_auth_client is not None:
+        logger.info("startup.wechat_auth_client %s", wechat_auth_client.__class__.__name__)
+    for key, value in sorted(os.environ.items()):
+        logger.info("startup.environ %s=%s", key, value)

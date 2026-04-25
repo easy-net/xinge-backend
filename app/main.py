@@ -35,7 +35,7 @@ def create_app(settings: Settings = None) -> FastAPI:
     else:
         app.state.wechat_pay_client = NullWechatPayClient()
     BootstrapService(engine, session_factory).run()
-    log_startup_environment(settings)
+    log_startup_environment(settings, wechat_auth_client=app.state.wechat_auth_client)
 
     register_middleware(app)
     register_exception_handlers(app)

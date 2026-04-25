@@ -75,6 +75,18 @@ Use `.env.example` as the baseline:
 
 The app now validates production settings on startup. If you keep `APP_ENV=production` and `ALLOW_EPHEMERAL_DB=false`, `sqlite` is rejected.
 
+## Auth Flow
+
+The backend now supports a two-step mini program auth flow:
+
+1. Call `/api/v1/mp/auth/login` with a fresh `X-Login-Code`
+2. Read `data.access_token` from the response
+3. Call subsequent private APIs with `Authorization: Bearer <access_token>`
+
+The issued access token lifetime defaults to 24 hours and can be changed with `AUTH_TOKEN_TTL_SECONDS`.
+
+For backward compatibility, the older `X-Login-Code`-based private API flow still works, but it will continue to consume a fresh WeChat code on every request.
+
 ## Real WeChat Pay Setup
 
 If you already have a verified payment setup under `payment-backend`, you can reuse its certificate files directly.

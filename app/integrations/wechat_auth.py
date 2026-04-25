@@ -1,8 +1,10 @@
 import time
+import logging
 from dataclasses import dataclass
 
 from app.core.errors import AuthError
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class WechatSessionInfo:
@@ -114,6 +116,7 @@ class RealWechatAuthClient(WechatAuthClient):
                 "grant_type": "authorization_code",
             },
         )
+        logger.info("wechat auth response: %s", payload)
         if "openid" not in payload:
             raise AuthError(message=self._extract_wechat_error(payload))
         return WechatSessionInfo(openid=payload["openid"], unionid=payload.get("unionid", ""))

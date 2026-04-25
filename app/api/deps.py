@@ -5,6 +5,7 @@ from typing import Generator, Optional, Tuple
 from fastapi import Depends, Header, Request
 from sqlalchemy.orm import Session
 
+from app.core.auth_tokens import extract_bearer_token, parse_access_token
 from app.core.errors import AuthError, NotFoundError, ValidationError
 from app.db.models.user import User
 from app.repositories.user_repository import UserRepository
@@ -41,6 +42,7 @@ def get_mp_request_context(
     x_login_code: Optional[str] = Header(None, alias="X-Login-Code"),
     x_system_version: Optional[str] = Header(None, alias="X-System-Version"),
     x_device_uuid: Optional[str] = Header(None, alias="X-Device-UUID"),
+    authorization: Optional[str] = Header(None, alias="Authorization"),
 ) -> MPRequestContext:
     settings = request.app.state.settings
     if settings.unsafe_disable_validation:
@@ -48,6 +50,14 @@ def get_mp_request_context(
             login_code=x_login_code or "unsafe-login-code",
             system_version=x_system_version or "unsafe-system-version",
             device_uuid=x_device_uuid or "unsafe-device-uuid",
+        )
+
+    bearer_token = extract_bearer_token(authorization)
+    if bearer_token:
+        return MPRequestContext(
+            login_code=x_login_code or "",
+            system_version=x_system_version or "token-auth-system-version",
+            device_uuid=x_device_uuid or "token-auth-device-uuid",
         )
 
     missing_headers = []
@@ -72,6 +82,7 @@ def get_current_user(
     request_context: MPRequestContext = Depends(get_mp_request_context),
     db: Session = Depends(get_db_session),
     wechat_auth_client=Depends(get_wechat_auth_client),
+    authorization: Optional[str] = Header(None, alias="Authorization"),
 ) -> Tuple[User, MPRequestContext]:
     settings = request.app.state.settings
     user_repository = UserRepository(db)
@@ -93,6 +104,30 @@ def get_current_user(
         if settings.log_current_user_resolution:
             logger.info(
                 "current_user.resolved request_id=%s path=%s user_id=%s open_id=%s mode=unsafe login_code=%s device_uuid=%s",
+                request_id,
+                request.url.path,
+                user.id,
+                user.openid,
+                request_context.login_code,
+                request_context.device_uuid,
+            )
+        return user, request_context
+
+    bearer_token = extract_bearer_token(authorization)
+    if bearer_token:
+        token_payload = parse_access_token(bearer_token, secret=settings.encryption_key)
+        user = user_repository.get_by_id(int(token_payload["user_id"]))
+        if user is None or user.openid != token_payload["openid"]:
+            raise AuthError(message="unauthorized")
+        user_repository.update_device(
+            user=user,
+            device_uuid=request_context.device_uuid,
+            system_version=request_context.system_version,
+        )
+        db.commit()
+        if settings.log_current_user_resolution:
+            logger.info(
+                "current_user.resolved request_id=%s path=%s user_id=%s open_id=%s mode=bearer login_code=%s device_uuid=%s",
                 request_id,
                 request.url.path,
                 user.id,

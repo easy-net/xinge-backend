@@ -30,6 +30,9 @@ def test_app_startup_logs_environment(caplog, tmp_path):
     try:
         messages = [record.getMessage() for record in caplog.records]
         assert any("startup.settings" in message for message in messages)
-        assert any("startup.environ" in message for message in messages)
+        assert any("startup.wechat_auth_client NullWechatAuthClient" in message for message in messages)
+        env_logs = [message for message in messages if "startup.environ " in message]
+        assert env_logs
+        assert all("startup.environ " in message and "=" in message for message in env_logs)
     finally:
         app.state.engine.dispose()

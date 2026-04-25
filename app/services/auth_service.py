@@ -1,5 +1,6 @@
+from app.core.auth_tokens import issue_access_token
 from app.core.config import get_settings
-from app.core.errors import AuthError
+from app.core.errors import ValidationError
 from app.core.security import encrypt_text, mask_phone
 from app.repositories.message_repository import MessageRepository
 from app.repositories.report_repository import ReportRepository
@@ -7,14 +8,17 @@ from app.repositories.user_repository import UserRepository
 
 
 class AuthService:
-    def __init__(self, db, wechat_auth_client):
+    def __init__(self, db, wechat_auth_client, settings=None):
         self.db = db
         self.wechat_auth_client = wechat_auth_client
+        self.settings = settings or get_settings()
         self.user_repository = UserRepository(db)
         self.report_repository = ReportRepository(db)
         self.message_repository = MessageRepository(db)
 
     def login(self, request_context, distributor_id=None):
+        if not request_context.login_code:
+            raise ValidationError(message="X-Login-Code is required for login")
         session_info = self.wechat_auth_client.code_to_session(request_context.login_code)
         user = self.user_repository.get_by_openid(session_info.openid)
         is_new_user = False
@@ -28,11 +32,20 @@ class AuthService:
             system_version=request_context.system_version,
         )
         self.db.commit()
+        access_token = issue_access_token(
+            user_id=user.id,
+            openid=user.openid,
+            secret=self.settings.encryption_key,
+            ttl_seconds=self.settings.auth_token_ttl_seconds,
+        )
 
         data = {
+            "access_token": access_token,
+            "expires_in": self.settings.auth_token_ttl_seconds,
             "has_phone": bool(user.phone_masked),
             "is_new_user": is_new_user,
             "role": "distributor" if user.is_distributor else "user",
+            "token_type": "Bearer",
             "user_info": {
                 "open_id": user.openid,
                 "user_id": user.id,
@@ -40,14 +53,9 @@ class AuthService:
         }
         return data, {"open_id": user.openid, "user_id": user.id}
 
-    def bind_phone(self, request_context, phone_code: str):
-        session_info = self.wechat_auth_client.code_to_session(request_context.login_code)
-        user = self.user_repository.get_by_openid(session_info.openid)
-        if user is None:
-            raise AuthError(message="unauthorized")
+    def bind_phone(self, *, user, request_context, phone_code: str):
         phone = self.wechat_auth_client.decrypt_phone_number(phone_code)
-        settings = get_settings()
-        phone_ciphertext = encrypt_text(phone, settings.encryption_key)
+        phone_ciphertext = encrypt_text(phone, self.settings.encryption_key)
         phone_masked = mask_phone(phone)
         self.user_repository.update_phone(user=user, phone_ciphertext=phone_ciphertext, phone_masked=phone_masked)
         self.user_repository.update_device(
