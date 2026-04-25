@@ -106,6 +106,7 @@ For local or test-only curl debugging, you can enable:
 ```bash
 export DEV_AUTH_BYPASS=true
 export LOG_MP_REPORT_PAYLOADS=true
+export LOG_ALL_API_PAYLOADS=true
 export UNSAFE_DISABLE_VALIDATION=true
 export LOG_CURRENT_USER_RESOLUTION=true
 ```
@@ -113,6 +114,8 @@ export LOG_CURRENT_USER_RESOLUTION=true
 When enabled, the app derives a stable fake `openid` from `X-Login-Code` so private endpoints can be exercised without calling real WeChat login. Do not enable this in production.
 
 With `LOG_MP_REPORT_PAYLOADS=true`, the `/mp/reports` create API logs sanitized request and response payloads with the same `request_id`, which is helpful when debugging `create_report` in local runs or cloud logs.
+
+With `LOG_ALL_API_PAYLOADS=true`, every API request under `/api/` logs its request and response payloads together with request id, method, path, status code, and a few key headers. This is the easiest switch to turn on when you want to debug all interfaces end to end.
 
 With `UNSAFE_DISABLE_VALIDATION=true`, private endpoints bypass auth and required MP headers, and a synthetic user is auto-created from the request context. This mode is intentionally blocked in `production` and should only be used for local debugging.
 

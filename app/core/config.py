@@ -25,6 +25,7 @@ class Settings:
     wechat_callback_tolerance: int = 300
     dev_auth_bypass: bool = False
     log_mp_report_payloads: bool = False
+    log_all_api_payloads: bool = False
     unsafe_disable_validation: bool = False
     log_current_user_resolution: bool = False
 
@@ -84,6 +85,7 @@ def get_settings() -> Settings:
         wechat_callback_tolerance=int(os.getenv("WECHAT_CALLBACK_TOLERANCE", "300")),
         dev_auth_bypass=os.getenv("DEV_AUTH_BYPASS", "false").lower() == "true",
         log_mp_report_payloads=os.getenv("LOG_MP_REPORT_PAYLOADS", "false").lower() == "true",
+        log_all_api_payloads=os.getenv("LOG_ALL_API_PAYLOADS", "false").lower() == "true",
         unsafe_disable_validation=os.getenv("UNSAFE_DISABLE_VALIDATION", "false").lower() == "true",
         log_current_user_resolution=os.getenv("LOG_CURRENT_USER_RESOLUTION", "false").lower() == "true",
     )

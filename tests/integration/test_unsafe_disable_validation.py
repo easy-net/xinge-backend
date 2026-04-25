@@ -100,3 +100,38 @@ def test_log_current_user_resolution_outputs_resolved_user(tmp_path, caplog):
     finally:
         Base.metadata.drop_all(app.state.engine)
         app.state.engine.dispose()
+
+
+def test_log_all_api_payloads_outputs_request_and_response(tmp_path, caplog):
+    settings = Settings(
+        app_env="development",
+        database_url="sqlite+pysqlite:///{}".format(tmp_path / "unsafe-api-logs.db"),
+        encryption_key="0123456789abcdef0123456789abcdef",
+        allow_ephemeral_db=True,
+        unsafe_disable_validation=True,
+        log_all_api_payloads=True,
+    )
+    app = create_app(settings)
+    Base.metadata.create_all(app.state.engine)
+
+    try:
+        with TestClient(app) as client:
+            with caplog.at_level(logging.INFO):
+                response = client.post(
+                    "/api/v1/mp/reports/list",
+                    json={"page": 1, "page_size": 20},
+                )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["code"] == 0
+        messages = [record.getMessage() for record in caplog.records]
+        request_log = next(message for message in messages if "api.request" in message)
+        response_log = next(message for message in messages if "api.response" in message)
+        assert "path=/api/v1/mp/reports/list" in request_log
+        assert "'page': 1" in request_log
+        assert "status_code=200" in response_log
+        assert "'code': 0" in response_log
+    finally:
+        Base.metadata.drop_all(app.state.engine)
+        app.state.engine.dispose()
