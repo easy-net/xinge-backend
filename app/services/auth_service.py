@@ -1,6 +1,7 @@
 from app.core.config import get_settings
 from app.core.errors import AuthError
 from app.core.security import encrypt_text, mask_phone
+from app.repositories.message_repository import MessageRepository
 from app.repositories.report_repository import ReportRepository
 from app.repositories.user_repository import UserRepository
 
@@ -11,6 +12,7 @@ class AuthService:
         self.wechat_auth_client = wechat_auth_client
         self.user_repository = UserRepository(db)
         self.report_repository = ReportRepository(db)
+        self.message_repository = MessageRepository(db)
 
     def login(self, request_context, distributor_id=None):
         session_info = self.wechat_auth_client.code_to_session(request_context.login_code)
@@ -74,7 +76,7 @@ class AuthService:
             "phone_masked": user.phone_masked or None,
             "report_count": self.report_repository.count_for_user(user.id),
             "role": "distributor" if user.is_distributor else "user",
-            "unread_message_count": 0,
+            "unread_message_count": self.message_repository.count_unread_for_user(user.id),
             "user_id": user.id,
         }
         return data, {"open_id": user.openid, "user_id": user.id}

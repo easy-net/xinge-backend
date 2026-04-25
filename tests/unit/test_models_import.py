@@ -1,4 +1,4 @@
-from app.db.models import Order, PaymentCallback, ProductConfig, Report, School, User, UserDevice
+from app.db.models import Message, Order, PaymentCallback, ProductConfig, Report, School, User, UserDevice
 
 
 def test_models_are_registered_on_metadata():
@@ -10,6 +10,7 @@ def test_models_are_registered_on_metadata():
         Report.__tablename__,
         Order.__tablename__,
         PaymentCallback.__tablename__,
+        Message.__tablename__,
     }
     assert "mp_users" in table_names
     assert "mp_user_devices" in table_names
@@ -18,3 +19,4 @@ def test_models_are_registered_on_metadata():
     assert "reports" in table_names
     assert "orders" in table_names
     assert "payment_callbacks" in table_names
+    assert "messages" in table_names

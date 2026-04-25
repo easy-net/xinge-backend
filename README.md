@@ -33,6 +33,12 @@ pip install -e ".[dev]"
 uvicorn app.main:app --reload
 ```
 
+Or:
+
+```bash
+sh scripts/run_api.sh
+```
+
 ## Health Endpoints
 
 - `GET /healthz`
@@ -47,4 +53,25 @@ This repo now includes:
 - `container.config.json`
 
 The current default cloud runtime uses `sqlite` in `/tmp/xinge.db` only for smoke deployment. For a persistent production deployment, switch `DATABASE_URL` to MySQL before going live.
-# xinge-backend
+
+## Production Config
+
+Use `.env.example` as the baseline:
+
+- set `DATABASE_URL` to a real MySQL instance
+- set `ENCRYPTION_KEY` to a secret with at least 32 characters
+- set `ALLOW_EPHEMERAL_DB=false`
+- set `WECHAT_APP_ID` and `WECHAT_APP_SECRET` for real mini program login
+- `/mp/auth/bind-phone` will call WeChat `getuserphonenumber` with the `phone_code` from `wx.getPhoneNumber()`
+
+The app now validates production settings on startup. If you keep `APP_ENV=production` and `ALLOW_EPHEMERAL_DB=false`, `sqlite` is rejected.
+
+## Dev Auth Bypass
+
+For local or test-only curl debugging, you can enable:
+
+```bash
+export DEV_AUTH_BYPASS=true
+```
+
+When enabled, the app derives a stable fake `openid` from `X-Login-Code` so private endpoints can be exercised without calling real WeChat login. Do not enable this in production.

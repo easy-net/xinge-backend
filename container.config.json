@@ -10,8 +10,12 @@
   "policyThreshold": 60,
   "envParams": {
     "APP_ENV": "production",
-    "DATABASE_URL": "sqlite+pysqlite:////tmp/xinge.db",
-    "ENCRYPTION_KEY": "0123456789abcdef0123456789abcdef"
+    "DATABASE_URL": "mysql+pymysql://root:password@mysql:3306/xinge_backend",
+    "ENCRYPTION_KEY": "replace-with-a-32-char-or-longer-secret-key",
+    "ALLOW_EPHEMERAL_DB": "false",
+    "WECHAT_APP_ID": "replace-with-mini-program-app-id",
+    "WECHAT_APP_SECRET": "replace-with-mini-program-app-secret",
+    "DEV_AUTH_BYPASS": "false"
   },
   "customLogs": "stdout",
   "initialDelaySeconds": 2
