@@ -15,6 +15,8 @@ class Settings:
     wechat_app_id: str = ""
     wechat_app_secret: str = ""
     dev_auth_bypass: bool = False
+    log_mp_report_payloads: bool = False
+    unsafe_disable_validation: bool = False
 
     def validate(self) -> None:
         if len(self.encryption_key) < 32:
@@ -22,6 +24,9 @@ class Settings:
 
         if self.app_env == "production" and self.database_url.startswith("sqlite") and not self.allow_ephemeral_db:
             raise ValidationError(message="production deployment requires a persistent DATABASE_URL")
+
+        if self.app_env == "production" and self.unsafe_disable_validation:
+            raise ValidationError(message="UNSAFE_DISABLE_VALIDATION cannot be enabled in production")
 
         if self.app_env == "production" and not self.dev_auth_bypass:
             if not self.wechat_app_id or not self.wechat_app_secret:
@@ -39,4 +44,6 @@ def get_settings() -> Settings:
         wechat_app_id=os.getenv("WECHAT_APP_ID", ""),
         wechat_app_secret=os.getenv("WECHAT_APP_SECRET", ""),
         dev_auth_bypass=os.getenv("DEV_AUTH_BYPASS", "false").lower() == "true",
+        log_mp_report_payloads=os.getenv("LOG_MP_REPORT_PAYLOADS", "false").lower() == "true",
+        unsafe_disable_validation=os.getenv("UNSAFE_DISABLE_VALIDATION", "false").lower() == "true",
     )

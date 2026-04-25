@@ -15,7 +15,9 @@
     "ALLOW_EPHEMERAL_DB": "false",
     "WECHAT_APP_ID": "replace-with-mini-program-app-id",
     "WECHAT_APP_SECRET": "replace-with-mini-program-app-secret",
-    "DEV_AUTH_BYPASS": "false"
+    "DEV_AUTH_BYPASS": "false",
+    "LOG_MP_REPORT_PAYLOADS": "false",
+    "UNSAFE_DISABLE_VALIDATION": "false"
   },
   "customLogs": "stdout",
   "initialDelaySeconds": 2

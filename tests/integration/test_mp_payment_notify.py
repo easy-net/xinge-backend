@@ -53,9 +53,9 @@ def test_payment_notify_updates_order_and_report_status_flow(client, db_session)
     assert links_response.status_code == 200
     links = links_response.json()["data"]
     assert links["is_paid"] is True
-    assert links["preview_h5_url"].startswith("https://cos.example.com/")
-    assert links["full_h5_url"].startswith("https://cos.example.com/")
-    assert links["pdf_url"].startswith("https://cos.example.com/")
+    assert links["preview_h5_url"].endswith("/static/report-preview.html?report_id={}&mode=preview".format(report_id))
+    assert links["full_h5_url"].endswith("/static/report-preview.html?report_id={}&mode=full".format(report_id))
+    assert links["pdf_url"].endswith("/static/report-preview.html?report_id={}&mode=pdf".format(report_id))
 
 
 def test_links_for_unpaid_report_only_return_preview(client):
@@ -66,6 +66,6 @@ def test_links_for_unpaid_report_only_return_preview(client):
     assert links_response.status_code == 200
     links = links_response.json()["data"]
     assert links["is_paid"] is False
-    assert links["preview_h5_url"].startswith("https://cos.example.com/")
+    assert links["preview_h5_url"].endswith("/static/report-preview.html?report_id={}&mode=preview".format(report_id))
     assert links["full_h5_url"] is None
     assert links["pdf_url"] is None

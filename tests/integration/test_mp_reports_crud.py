@@ -1,3 +1,6 @@
+import logging
+
+
 def auth_headers(login_code="login-code-user-1", device_uuid="device-1"):
     return {
         "X-Login-Code": login_code,
@@ -73,3 +76,32 @@ def test_report_detail_hides_other_users_report(client):
     )
 
     assert response.status_code == 404
+
+
+def test_create_report_logs_request_and_response_when_enabled(client, test_settings, caplog):
+    test_settings.log_mp_report_payloads = True
+    client.post("/api/v1/mp/auth/login", headers=auth_headers(), json={})
+
+    with caplog.at_level(logging.INFO):
+        response = client.post(
+            "/api/v1/mp/reports",
+            headers=auth_headers(),
+            json={
+                "name": "张三",
+                "school_name": "北京大学",
+                "notes": "这里是需要调试的备注",
+                "study_path_priority": ["国内读研"],
+                "employment_intention": ["名企大厂"],
+                "target_major": ["软件工程"],
+                "target_work_city": ["北京"],
+            },
+        )
+
+    assert response.status_code == 201
+    messages = [record.getMessage() for record in caplog.records]
+    request_log = next(message for message in messages if "mp.create_report.request" in message)
+    response_log = next(message for message in messages if "mp.create_report.response" in message)
+    assert "payload=" in request_log
+    assert "'name': '张*'" in request_log
+    assert "<redacted:10 chars>" in request_log
+    assert "report_id" in response_log

@@ -1,4 +1,5 @@
 from datetime import datetime
+from urllib.parse import urlencode
 
 from app.repositories.order_repository import OrderRepository
 from app.core.errors import NotFoundError
@@ -72,16 +73,27 @@ class ReportService:
             "status": report.status,
         }
 
-    def links(self, *, user, report_id: int):
+    def links(self, *, user, report_id: int, base_url: str = ""):
         report = self.repository.get_for_user(report_id=report_id, user_id=user.id)
         if report is None:
             raise NotFoundError(message="report not found")
         latest_order = self.order_repository.latest_for_report(report_id=report.id)
         is_paid = bool(latest_order and latest_order.status == "paid")
-        preview_key = report.preview_h5_key or "h5/{}_preview.html".format(report.id)
-        preview_url = self._sign_cos_url(preview_key)
-        full_url = self._sign_cos_url(report.full_h5_key) if is_paid and report.full_h5_key else None
-        pdf_url = self._sign_cos_url(report.pdf_key) if is_paid and report.pdf_key else None
+        preview_url = self._build_report_page_url(
+            report_id=report.id,
+            mode="preview",
+            base_url=base_url,
+        )
+        full_url = self._build_report_page_url(
+            report_id=report.id,
+            mode="full",
+            base_url=base_url,
+        ) if is_paid else None
+        pdf_url = self._build_report_page_url(
+            report_id=report.id,
+            mode="pdf",
+            base_url=base_url,
+        ) if is_paid else None
         return {
             "expires_in": 3600,
             "full_h5_url": full_url,
@@ -108,5 +120,8 @@ class ReportService:
             "updated_at": report.updated_at.isoformat() + "Z",
         }
 
-    def _sign_cos_url(self, key: str):
-        return "https://cos.example.com/{}?sign=mock-signature".format(key)
+    def _build_report_page_url(self, *, report_id: int, mode: str, base_url: str = ""):
+        query = urlencode({"report_id": report_id, "mode": mode})
+        base_url = base_url.rstrip("/")
+        path = "/static/report-preview.html?{}".format(query)
+        return "{}{}".format(base_url, path) if base_url else path

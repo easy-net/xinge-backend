@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from app.api.middleware import register_exception_handlers, register_middleware
 from app.api.routes import register_routers
@@ -35,6 +36,7 @@ def create_app(settings: Settings = None) -> FastAPI:
     register_middleware(app)
     register_exception_handlers(app)
     register_routers(app)
+    app.mount("/static", StaticFiles(directory="static"), name="static")
     return app
 
 

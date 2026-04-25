@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>报告预览 - 目录分享</title>
+  <style>
+    :root {
+      --page-bg: #eff5ff;
+      --card-bg: rgba(255, 255, 255, 0.96);
+      --card-border: rgba(255, 255, 255, 0.95);
+      --primary: #147dff;
+      --primary-deep: #0070fb;
+      --ink: #131848;
+      --body: #042853;
+      --muted: rgba(19, 24, 72, 0.2);
+      --line: rgba(20, 125, 255, 0.18);
+      --shadow: 0 18px 40px rgba(31, 90, 172, 0.14);
+      --radius-xl: 24px;
+      --radius-lg: 18px;
+      --radius-md: 14px;
+      --phone-width: 375px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 24px 16px;
+      background:
+        radial-gradient(circle at 50% 0, rgba(177, 214, 255, 0.55), transparent 35%),
+        linear-gradient(180deg, #f8fbff 0%, #edf4ff 100%);
+      font-family: "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+      color: var(--ink);
+    }
+
+    .phone {
+      width: 100%;
+      max-width: var(--phone-width);
+      min-height: 812px;
+      position: relative;
+      overflow: hidden;
+      border-radius: 36px;
+      background:
+        radial-gradient(circle at 18% 24%, rgba(130, 193, 255, 0.55), transparent 30%),
+        radial-gradient(circle at 85% 26%, rgba(180, 216, 255, 0.7), transparent 24%),
+        linear-gradient(180deg, #fbfdff 0%, #d7e9ff 24%, #f4f8ff 36%, #e8f2ff 100%);
+      box-shadow: 0 28px 70px rgba(18, 56, 116, 0.16);
+    }
+
+    .content {
+      padding: 28px 16px 28px;
+    }
+
+    .brand-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-top: 8px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #0f64da;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .brand-badge {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      background: linear-gradient(135deg, #62b4ff 0%, #167bff 100%);
+      box-shadow: 0 4px 10px rgba(20, 125, 255, 0.25);
+    }
+
+    .report-tagline {
+      margin-top: 6px;
+      margin-right: 110px;
+      font-size: 12px;
+      line-height: 18px;
+      color: #021b5c;
+    }
+
+    .directory-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 16px;
+      height: 48px;
+      border-radius: 33px;
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(1, 60, 133, 0.3);
+      font-size: 18px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .directory-pill .divider {
+      width: 1px;
+      height: 16px;
+      background: rgba(255, 255, 255, 0.75);
+    }
+
+    .share-icon {
+      width: 18px;
+      height: 18px;
+      position: relative;
+    }
+
+    .share-icon::before,
+    .share-icon::after {
+      content: "";
+      position: absolute;
+      border-radius: 999px;
+      background: #fff;
+    }
+
+    .share-icon::before {
+      width: 14px;
+      height: 2px;
+      left: 2px;
+      top: 8px;
+      transform: rotate(-25deg);
+    }
+
+    .share-icon::after {
+      width: 6px;
+      height: 6px;
+      right: 1px;
+      top: 2px;
+      box-shadow: -9px 7px 0 0 #fff, -1px 10px 0 0 transparent;
+    }
+
+    .hero {
+      position: relative;
+      margin-top: 8px;
+      padding-bottom: 18px;
+    }
+
+    .hero h1 {
+      margin: 10px 0 14px;
+      font-size: 30px;
+      line-height: 1.06;
+      letter-spacing: -0.3px;
+      font-weight: 300;
+      color: #0c1039;
+    }
+
+    .hero h1 strong {
+      color: var(--primary-deep);
+      font-weight: 300;
+    }
+
+    .progress {
+      width: 103px;
+      height: 5px;
+      border-radius: 999px;
+      border: 1px solid var(--primary);
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+
+    .progress > span {
+      display: block;
+      width: 51px;
+      height: 100%;
+      background: var(--primary);
+      border-radius: 999px;
+    }
+
+    .hero-banner {
+      height: 208px;
+      border-radius: 6px;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 30% 40%, rgba(255, 255, 255, 0.75), transparent 32%),
+        linear-gradient(180deg, rgba(20, 125, 255, 0.1) 0%, rgba(20, 125, 255, 0.38) 100%);
+      box-shadow: 0 12px 26px rgba(41, 109, 193, 0.18);
+    }
+
+    .hero-banner img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .profile-card {
+      position: relative;
+      margin-top: -42px;
+      margin-inline: 16px;
+      padding: 26px 14px 16px;
+      border-radius: 15px;
+      border: 1px solid var(--card-border);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.72) 0%, #fff 100%);
+      backdrop-filter: blur(16px);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .profile-card::before,
+    .profile-card::after {
+      content: "“";
+      position: absolute;
+      font-family: Georgia, serif;
+      color: var(--primary);
+      font-size: 56px;
+      line-height: 1;
+      font-weight: 700;
+      opacity: 0.95;
+    }
+
+    .profile-card::before {
+      top: -2px;
+      left: 2px;
+    }
+
+    .profile-card::after {
+      right: 14px;
+      bottom: -10px;
+      transform: rotate(180deg);
+    }
+
+    .profile-name {
+      font-size: 18px;
+      font-weight: 700;
+      margin: 0 0 4px 8px;
+    }
+
+    .profile-meta {
+      margin: 0 0 14px 8px;
+      font-size: 12px;
+      color: var(--body);
+    }
+
+    .pill-row,
+    .tag-row {
+      display: grid;
+      gap: 8px;
+    }
+
+    .pill-row {
+      grid-template-columns: repeat(4, 1fr);
+      margin-bottom: 10px;
+    }
+
+    .pill {
+      height: 32px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: var(--body);
+      text-align: center;
+      padding: 0 4px;
+    }
+
+    .score-grid {
+      margin-bottom: 12px;
+      padding: 16px 12px 14px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.9);
+    }
+
+    .score-summary {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      margin-bottom: 14px;
+      text-align: center;
+    }
+
+    .score-summary b {
+      display: block;
+      margin-top: 4px;
+      color: #005aca;
+      font-size: 20px;
+      line-height: 1.2;
+    }
+
+    .subject-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px 10px;
+    }
+
+    .subject {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--body);
+    }
+
+    .subject-badge {
+      min-width: 34px;
+      height: 18px;
+      padding: 0 6px;
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+    }
+
+    .subject-badge.blue { background: rgba(0, 115, 255, 0.2); color: #0068e8; }
+    .subject-badge.indigo { background: rgba(111, 0, 255, 0.2); color: #1e30d9; }
+    .subject-badge.orange { background: rgba(255, 111, 0, 0.2); color: #f47200; }
+    .subject-badge.cyan { background: rgba(0, 229, 255, 0.2); color: #00849b; }
+
+    .tag-row {
+      margin-top: 12px;
+    }
+
+    .tag {
+      min-height: 32px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(34, 133, 255, 0.2) 0%, rgba(41, 136, 255, 0) 96%);
+      color: #0054bb;
+      font-size: 12px;
+      line-height: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tag::before {
+      content: "";
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--primary);
+      flex: none;
+    }
+
+    .summary-card,
+    .section-card {
+      position: relative;
+      margin-top: 20px;
+      padding: 24px 14px 18px;
+      border-radius: 16px;
+      border: 1px solid var(--card-border);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.96) 32%);
+      backdrop-filter: blur(18px);
+      box-shadow: var(--shadow);
+    }
+
+    .summary-card h2 {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: 1.2px;
+      font-weight: 700;
+    }
+
+    .summary-card .en,
+    .chapter-head .en,
+    .section-head .en {
+      color: var(--primary-deep);
+      text-transform: capitalize;
+      letter-spacing: 0.32px;
+      font-size: 8px;
+    }
+
+    .summary-card .heading-row,
+    .chapter-head,
+    .section-head {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .summary-card hr,
+    .chapter-block hr {
+      border: 0;
+      border-top: 1px solid var(--line);
+      margin: 10px 0 12px;
+    }
+
+    .summary-card p,
+    .section-card p {
+      margin: 0;
+      color: var(--body);
+      font-size: 13px;
+      line-height: 22px;
+      text-align: justify;
+    }
+
+    .chapter-block {
+      margin-top: 22px;
+    }
+
+    .chapter-head .title-cn {
+      font-size: 28px;
+      line-height: 36px;
+      font-weight: 600;
+    }
+
+    .chapter-head .title-en {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--primary-deep);
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .chapter-line {
+      width: 18px;
+      height: 8px;
+      background:
+        linear-gradient(90deg, rgba(20, 125, 255, 0) 0, rgba(20, 125, 255, 0) 2px, #147dff 2px, #147dff 4px, rgba(20, 125, 255, 0) 4px, rgba(20, 125, 255, 0) 6px, #147dff 6px, #147dff 8px, rgba(20, 125, 255, 0) 8px, rgba(20, 125, 255, 0) 10px, #147dff 10px, #147dff 12px, rgba(20, 125, 255, 0) 12px);
+    }
+
+    .section-head {
+      margin: 18px 0 10px;
+      align-items: flex-start;
+    }
+
+    .section-index {
+      color: var(--primary-deep);
+      font: 600 32px/32px Poppins, "PingFang SC", sans-serif;
+      flex: none;
+    }
+
+    .section-titles {
+      flex: 1;
+      padding-top: 2px;
+    }
+
+    .section-titles h3 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 20px;
+      font-weight: 600;
+    }
+
+    .section-card h4 {
+      margin: 0 0 16px;
+      font-size: 15px;
+      line-height: 20px;
+      color: var(--primary);
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .section-card h4::after {
+      content: "›";
+      font-size: 18px;
+      color: var(--primary);
+      transform: scaleX(1.2);
+    }
+
+    .footnote {
+      margin-top: 12px;
+      color: #6b86a6;
+      font-size: 12px;
+      line-height: 20px;
+    }
+
+    @media (max-width: 420px) {
+      body {
+        padding: 0;
+      }
+
+      .phone {
+        max-width: none;
+        border-radius: 0;
+        min-height: 100vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="phone">
+    <div class="content">
+      <section class="hero">
+        <div class="brand-row">
+          <div>
+            <div class="brand">
+              <span class="brand-badge" aria-hidden="true"></span>
+              <span>信鸽通</span>
+            </div>
+            <div class="report-tagline">大学“学业+职业”个性化行动指南</div>
+          </div>
+          <div class="directory-pill">
+            <span>目录</span>
+            <span class="divider" aria-hidden="true"></span>
+            <span class="share-icon" aria-hidden="true"></span>
+          </div>
+        </div>
+
+        <h1><strong>王宇</strong>的专属<br />大学AI规划报告</h1>
+        <div class="progress" aria-hidden="true"><span></span></div>
+
+        <div class="hero-banner">
+          <img src="https://www.figma.com/api/mcp/asset/0dcbb25e-7629-465c-b135-085eb6cb1775" alt="报告视觉封面" />
+        </div>
+
+        <article class="profile-card">
+          <h2 class="profile-name">王宇</h2>
+          <p class="profile-meta">清华大学-理工学院-计算机与软件工程专业-25级</p>
+
+          <div class="pill-row">
+            <div class="pill">男生</div>
+            <div class="pill">党员</div>
+            <div class="pill">上海人</div>
+            <div class="pill">上海高考</div>
+          </div>
+
+          <div class="score-grid">
+            <div class="score-summary">
+              <div>高考总分<b>688</b></div>
+              <div>高考位次<b>28167</b></div>
+            </div>
+            <div class="subject-grid">
+              <div class="subject"><span class="subject-badge blue">语文</span><span>135</span></div>
+              <div class="subject"><span class="subject-badge blue">数学</span><span>127</span></div>
+              <div class="subject"><span class="subject-badge blue">英语</span><span>140</span></div>
+              <div class="subject"><span class="subject-badge indigo">物理</span><span>135</span></div>
+              <div class="subject"><span class="subject-badge orange">化学</span><span>135</span></div>
+              <div class="subject"><span class="subject-badge cyan">生物</span><span>135</span></div>
+            </div>
+          </div>
+
+          <div class="tag-row">
+            <div class="tag">你对现有专业不满意，想换到专业《建筑学》</div>
+            <div class="tag">是否考研，根据就业情况再做决定</div>
+            <div class="tag">未来想考公务员或事业编，去“北京”工作</div>
+          </div>
+        </article>
+      </section>
+
+      <section class="summary-card">
+        <div class="heading-row">
+          <h2>摘要</h2>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="en">Abstract</span>
+            <span class="chapter-line" aria-hidden="true"></span>
+          </div>
+        </div>
+        <hr />
+        <p>
+          武汉大学位于湖北省武汉市，属于新一线城市，区位处于中部核心区域，具备较强的区域辐射能力与人才集聚能力。作为985工程、211工程和双一流建设高校，该校在全国高校体系中具有较高辨识度与平台影响力。学校学科体系覆盖文、理、工、医、经、管、法、哲等多个门类，结构完整且分布均衡。在数量上，学校拥有53个博士点及完善的硕士培养体系，并设有42个博士后科研流动站，形成贯通本硕博的完整培养链条。在质量结构上，拥有11个“双一流”建设学科及19个A类学科，整体呈现头部学科引领、多学科协同发展的结构。
+        </p>
+      </section>
+
+      <section class="chapter-block">
+        <div class="chapter-head">
+          <div>
+            <div class="title-cn">第一章</div>
+            <div class="title-cn">关于起点定位</div>
+          </div>
+          <div class="title-en">
+            <span>Chapter One</span>
+            <span class="chapter-line" aria-hidden="true"></span>
+          </div>
+        </div>
+        <hr />
+
+        <div class="section-head">
+          <div class="section-index">1.1</div>
+          <div class="section-titles">
+            <h3>学校平台定位</h3>
+            <div class="en">School platform positioning</div>
+          </div>
+        </div>
+
+        <article class="section-card">
+          <h4>1.1.1 学校介绍</h4>
+          <p>
+            武汉大学位于湖北省武汉市，属于新一线城市，区位处于中部核心区域，具备较强的区域辐射能力与人才集聚能力。作为985工程、211工程和双一流建设高校，该校在全国高校体系中具有较高辨识度与平台影响力。学校学科体系覆盖文、理、工、医、经、管、法、哲等多个门类，结构完整且分布均衡。在数量上，学校拥有53个博士点及完善的硕士培养体系，并设有42个博士后科研流动站，形成贯通本硕博的完整培养链条。在质量结构上，拥有11个“双一流”建设学科及19个A类学科，其中测绘科学与技术、图书情报与档案管理、马克思主义理论、地球物理学等方向具有突出竞争力。
+          </p>
+        </article>
+
+        <div class="section-head">
+          <div class="section-index">1.2</div>
+          <div class="section-titles">
+            <h3>学院资源与定位</h3>
+            <div class="en">School platform positioning</div>
+          </div>
+        </div>
+
+        <article class="section-card">
+          <h4>1.2.1 学校介绍</h4>
+          <p>
+            武汉大学位于湖北省武汉市，属于新一线城市，区位处于中部核心区域，具备较强的区域辐射能力与人才集聚能力。作为985工程、211工程和双一流建设高校，该校在全国高校体系中具有较高辨识度与平台影响力。学校学科体系覆盖文、理、工、医、经、管、法、哲等多个门类，结构完整且分布均衡。在数量上，学校拥有53个博士点及完善的硕士培养体系，并设有42个博士后科研流动站，形成贯通本硕博的完整培养链条。在质量结构上，拥有11个“双一流”建设学科及19个A类学科，整体呈现头部学科引领、多学科协同发展的结构。
+          </p>
+          <p class="footnote">* 所有数据均来自网络，数据的准确性及时性以官方发布为准。报告所有建议仅供参考。</p>
+        </article>
+      </section>
+    </div>
+
+  </main>
+</body>
+</html>
