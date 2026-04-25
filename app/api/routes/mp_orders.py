@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends
+import json
+
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db_session, get_wechat_pay_client
-from app.api.schemas.mp_orders import MPCreateOrderReq, MPOrderDetailReq, MPWechatNotifyReq
+from app.api.schemas.mp_orders import MPCreateOrderReq, MPOrderDetailReq
 from app.core.response import mp_response
 from app.services.order_service import OrderService
 from app.services.payment_notify_service import PaymentNotifyService
@@ -17,6 +19,8 @@ def create_order(
     db: Session = Depends(get_db_session),
     wechat_pay_client=Depends(get_wechat_pay_client),
 ):
+
+    print(body)
     user, _ = current
     data = OrderService(db, wechat_pay_client).create_order(
         user=user,
@@ -39,9 +43,18 @@ def order_detail(
 
 
 @router.post("/mp/orders/notify/wechat")
-def wechat_notify(
-    body: MPWechatNotifyReq,
+async def wechat_notify(
+    request: Request,
     db: Session = Depends(get_db_session),
     wechat_pay_client=Depends(get_wechat_pay_client),
 ):
-    return PaymentNotifyService(db, wechat_pay_client).process(body.model_dump())
+    raw_body = await request.body()
+    body_text = raw_body.decode("utf-8") if raw_body else ""
+    try:
+        payload = json.loads(body_text) if body_text else {}
+    except json.JSONDecodeError:
+        payload = {}
+    if payload.get("resource"):
+        payload["_headers"] = dict(request.headers)
+        payload["_raw_body"] = body_text
+    return PaymentNotifyService(db, wechat_pay_client).process(payload)

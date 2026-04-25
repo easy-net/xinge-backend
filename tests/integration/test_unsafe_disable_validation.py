@@ -1,3 +1,5 @@
+import logging
+
 from fastapi.testclient import TestClient
 
 from app.core.config import Settings
@@ -64,6 +66,37 @@ def test_unsafe_disable_validation_returns_mock_links_for_missing_report(tmp_pat
         assert payload["preview_h5_url"].endswith("/static/report-preview.html?report_id=9999&mode=preview")
         assert payload["full_h5_url"].endswith("/static/report-preview.html?report_id=9999&mode=full")
         assert payload["pdf_url"].endswith("/static/report-preview.html?report_id=9999&mode=pdf")
+    finally:
+        Base.metadata.drop_all(app.state.engine)
+        app.state.engine.dispose()
+
+
+def test_log_current_user_resolution_outputs_resolved_user(tmp_path, caplog):
+    settings = Settings(
+        app_env="development",
+        database_url="sqlite+pysqlite:///{}".format(tmp_path / "unsafe-logs.db"),
+        encryption_key="0123456789abcdef0123456789abcdef",
+        allow_ephemeral_db=True,
+        unsafe_disable_validation=True,
+        log_current_user_resolution=True,
+    )
+    app = create_app(settings)
+    Base.metadata.create_all(app.state.engine)
+
+    try:
+        with TestClient(app) as client:
+            with caplog.at_level(logging.INFO):
+                response = client.post(
+                    "/api/v1/mp/reports/list",
+                    json={"page": 1, "page_size": 20},
+                )
+
+        assert response.status_code == 200
+        messages = [record.getMessage() for record in caplog.records]
+        resolved_log = next(message for message in messages if "current_user.resolved" in message)
+        assert "path=/api/v1/mp/reports/list" in resolved_log
+        assert "mode=unsafe" in resolved_log
+        assert "open_id=unsafe-openid-unsafe-login-code" in resolved_log
     finally:
         Base.metadata.drop_all(app.state.engine)
         app.state.engine.dispose()

@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from typing import Generator, Optional, Tuple
 
@@ -7,6 +8,8 @@ from sqlalchemy.orm import Session
 from app.core.errors import AuthError, NotFoundError, ValidationError
 from app.db.models.user import User
 from app.repositories.user_repository import UserRepository
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -72,6 +75,7 @@ def get_current_user(
 ) -> Tuple[User, MPRequestContext]:
     settings = request.app.state.settings
     user_repository = UserRepository(db)
+    request_id = getattr(request.state, "request_id", "")
 
     if settings.unsafe_disable_validation:
         base = request_context.login_code or request_context.device_uuid or "default"
@@ -86,12 +90,32 @@ def get_current_user(
             system_version=request_context.system_version,
         )
         db.commit()
+        if settings.log_current_user_resolution:
+            logger.info(
+                "current_user.resolved request_id=%s path=%s user_id=%s open_id=%s mode=unsafe login_code=%s device_uuid=%s",
+                request_id,
+                request.url.path,
+                user.id,
+                user.openid,
+                request_context.login_code,
+                request_context.device_uuid,
+            )
         return user, request_context
 
     session_info = wechat_auth_client.code_to_session(request_context.login_code)
     user = user_repository.get_by_openid(session_info.openid)
     if user is None:
         raise AuthError(message="unauthorized")
+    if settings.log_current_user_resolution:
+        logger.info(
+            "current_user.resolved request_id=%s path=%s user_id=%s open_id=%s mode=normal login_code=%s device_uuid=%s",
+            request_id,
+            request.url.path,
+            user.id,
+            user.openid,
+            request_context.login_code,
+            request_context.device_uuid,
+        )
     return user, request_context
 
 

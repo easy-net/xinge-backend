@@ -7,7 +7,7 @@ from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging
 from app.db.session import create_engine_and_session_factory
 from app.integrations.wechat_auth import DevBypassWechatAuthClient, NullWechatAuthClient, RealWechatAuthClient
-from app.integrations.wechat_pay import NullWechatPayClient
+from app.integrations.wechat_pay import NullWechatPayClient, RealWechatPayClient
 from app.services.bootstrap_service import BootstrapService
 
 
@@ -30,7 +30,10 @@ def create_app(settings: Settings = None) -> FastAPI:
         )
     else:
         app.state.wechat_auth_client = NullWechatAuthClient()
-    app.state.wechat_pay_client = NullWechatPayClient()
+    if settings.is_real_payment_ready():
+        app.state.wechat_pay_client = RealWechatPayClient(settings)
+    else:
+        app.state.wechat_pay_client = NullWechatPayClient()
     BootstrapService(engine, session_factory).run()
 
     register_middleware(app)
