@@ -1,5 +1,6 @@
 import base64
 import json
+import logging
 import time
 import uuid
 from dataclasses import dataclass
@@ -104,6 +105,7 @@ class RealWechatPayClient(WechatPayClient):
         }
 
     def create_prepay(self, *, order_id: str, amount: int, openid: str) -> PaymentParams:
+        logger = logging.getLogger(__name__)
         payload = {
             "appid": self.settings.wechat_app_id,
             "mchid": self.settings.wechat_mch_id,
@@ -119,6 +121,16 @@ class RealWechatPayClient(WechatPayClient):
             },
         }
         body_text = json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
+        logger.info(
+            "wechat.pay.jsapi.request order_id=%s endpoint=%s mchid=%s appid=%s total=%s has_openid=%s notify_url=%s",
+            order_id,
+            self.PAY_JSAPI_URL,
+            self.settings.wechat_mch_id,
+            self.settings.wechat_app_id,
+            payload["amount"]["total"],
+            bool(openid),
+            self.settings.wechat_notify_url,
+        )
         authorization = self._build_authorization("POST", "/v3/pay/transactions/jsapi", body_text)
         response = requests.post(
             self.PAY_JSAPI_URL,
@@ -130,10 +142,23 @@ class RealWechatPayClient(WechatPayClient):
                 "Content-Type": "application/json; charset=utf-8",
             },
         )
+        logger.info(
+            "wechat.pay.jsapi.response order_id=%s status_code=%s body=%s",
+            order_id,
+            response.status_code,
+            response.text[:1000],
+        )
         response.raise_for_status()
         data = response.json()
         prepay_id = data["prepay_id"]
         payment_params = self._build_pay_sign(prepay_id)
+        logger.info(
+            "wechat.pay.jsapi.success order_id=%s prepay_id=%s sign_type=%s package=%s",
+            order_id,
+            prepay_id,
+            payment_params["signType"],
+            payment_params["package"],
+        )
         return PaymentParams(
             timeStamp=payment_params["timeStamp"],
             nonceStr=payment_params["nonceStr"],
@@ -188,6 +213,7 @@ class RealWechatPayClient(WechatPayClient):
         return json.loads(plaintext.decode("utf-8"))
 
     def parse_notification(self, payload: dict) -> PaymentNotification:
+        logger = logging.getLogger(__name__)
         if payload.get("resource"):
             headers = payload.get("_headers") or {}
             body_text = payload.get("_raw_body") or json.dumps(
@@ -195,10 +221,18 @@ class RealWechatPayClient(WechatPayClient):
                 separators=(",", ":"),
                 ensure_ascii=False,
             )
+            logger.info("wechat.pay.notify.v3.received has_resource=true headers=%s", sorted(headers.keys()))
             self.verify_callback_signature(headers, body_text)
             transaction = self.decrypt_callback_resource(payload["resource"])
             amount_info = transaction.get("amount") or {}
             trade_state = (transaction.get("trade_state") or "").upper()
+            logger.info(
+                "wechat.pay.notify.v3.parsed out_trade_no=%s transaction_id=%s trade_state=%s payer_total=%s",
+                transaction.get("out_trade_no"),
+                transaction.get("transaction_id"),
+                trade_state,
+                amount_info.get("payer_total") or amount_info.get("total"),
+            )
             return PaymentNotification(
                 notify_id=payload.get("id") or transaction.get("transaction_id") or "notify-default",
                 order_id=transaction["out_trade_no"],
@@ -207,6 +241,12 @@ class RealWechatPayClient(WechatPayClient):
                 paid_at=transaction.get("success_time") or datetime.utcnow().isoformat() + "Z",
             )
 
+        logger.info(
+            "wechat.pay.notify.mock.received order_id=%s notify_id=%s status=%s",
+            payload.get("order_id"),
+            payload.get("notify_id"),
+            payload.get("status", "success"),
+        )
         return PaymentNotification(
             notify_id=payload.get("notify_id", "notify-default"),
             order_id=payload["order_id"],

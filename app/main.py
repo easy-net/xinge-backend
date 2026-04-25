@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from app.api.middleware import register_exception_handlers, register_middleware
 from app.api.routes import register_routers
 from app.core.config import Settings, get_settings
-from app.core.logging import configure_logging
+from app.core.logging import configure_logging, log_startup_environment
 from app.db.session import create_engine_and_session_factory
 from app.integrations.wechat_auth import DevBypassWechatAuthClient, NullWechatAuthClient, RealWechatAuthClient
 from app.integrations.wechat_pay import NullWechatPayClient, RealWechatPayClient
@@ -35,6 +35,7 @@ def create_app(settings: Settings = None) -> FastAPI:
     else:
         app.state.wechat_pay_client = NullWechatPayClient()
     BootstrapService(engine, session_factory).run()
+    log_startup_environment(settings)
 
     register_middleware(app)
     register_exception_handlers(app)

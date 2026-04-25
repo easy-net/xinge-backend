@@ -4,6 +4,10 @@ from functools import lru_cache
 
 from app.core.errors import ValidationError
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 @dataclass
 class Settings:
