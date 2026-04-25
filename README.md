@@ -63,8 +63,41 @@ Use `.env.example` as the baseline:
 - set `ALLOW_EPHEMERAL_DB=false`
 - set `WECHAT_APP_ID` and `WECHAT_APP_SECRET` for real mini program login
 - `/mp/auth/bind-phone` will call WeChat `getuserphonenumber` with the `phone_code` from `wx.getPhoneNumber()`
+- if you want real WeChat Pay, also set:
+  - `PAYMENT_MODE=real`
+  - `WECHAT_MCH_ID`
+  - `WECHAT_NOTIFY_URL`
+  - `WECHAT_PRIVATE_KEY_PATH`
+  - `WECHAT_SERIAL_NO`
+  - `WECHAT_API_V3_KEY`
+  - `WECHAT_PLATFORM_CERT_PATH`
+  - optionally `WECHAT_PLATFORM_SERIAL_NO`
 
 The app now validates production settings on startup. If you keep `APP_ENV=production` and `ALLOW_EPHEMERAL_DB=false`, `sqlite` is rejected.
+
+## Real WeChat Pay Setup
+
+If you already have a verified payment setup under `payment-backend`, you can reuse its certificate files directly.
+
+Example local paths:
+
+```bash
+WECHAT_PRIVATE_KEY_PATH=../xinge/payment-backend/certs/apiclient_key.pem
+WECHAT_PLATFORM_CERT_PATH=../xinge/payment-backend/certs/wechatpay_platform.pem
+```
+
+Or if you start `xinge-backend` from this repo root, these also work:
+
+```bash
+WECHAT_PRIVATE_KEY_PATH=./xinge-backend/payment-backend/certs/apiclient_key.pem
+WECHAT_PLATFORM_CERT_PATH=./xinge-backend/payment-backend/certs/wechatpay_platform.pem
+```
+
+Current payment behavior:
+
+- `/mp/orders` returns real `payment_params` for `wx.requestPayment()` when `PAYMENT_MODE=real` and all required WeChat Pay config is present.
+- `/mp/orders/notify/wechat` accepts both the existing mock callback body and the real WeChat Pay v3 callback body.
+- if payment config is incomplete, the backend automatically falls back to mock payment params.
 
 ## Dev Auth Bypass
 

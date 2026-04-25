@@ -19,8 +19,6 @@ def create_order(
     db: Session = Depends(get_db_session),
     wechat_pay_client=Depends(get_wechat_pay_client),
 ):
-
-    print(body)
     user, _ = current
     data = OrderService(db, wechat_pay_client).create_order(
         user=user,
