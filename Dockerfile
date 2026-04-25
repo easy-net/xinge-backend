@@ -9,6 +9,7 @@ WORKDIR /app
 
 COPY pyproject.toml setup.py README.md /app/
 COPY app /app/app
+COPY .env /app/.env
 COPY static /app/static
 COPY migrations /app/migrations
 COPY alembic.ini /app/alembic.ini
