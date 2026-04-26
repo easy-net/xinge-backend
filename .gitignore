@@ -1,3 +1,4 @@
 .venv/
 xinge_backend.egg-info/
 *.pyc
+.vercel

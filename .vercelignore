@@ -1,0 +1,14 @@
+.env
+.venv
+.pytest_cache
+.git
+docs
+tests
+Dockerfile
+Dockerfile.bak
+container.config.json
+scripts
+environment.yml
+swagger.yaml
+__pycache__
+*.pyc
