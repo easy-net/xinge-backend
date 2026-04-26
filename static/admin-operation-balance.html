@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>运营账户余额看板</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: rgba(255,255,255,0.96);
+      --text: #14213d;
+      --muted: #667085;
+      --line: #e6ebf2;
+      --primary: #1768ff;
+      --primary-deep: #0f52d6;
+      --warning: #b7791f;
+      --shadow: 0 18px 50px rgba(20, 33, 61, 0.08);
+      --radius: 20px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(23, 104, 255, 0.12), transparent 28%),
+        linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
+    }
+    .page { max-width: 1180px; margin: 0 auto; padding: 32px 20px 48px; }
+    .hero { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 24px; }
+    .hero h1 { margin: 0; font-size: 32px; }
+    .hero p { margin: 10px 0 0; color: var(--muted); font-size: 14px; }
+    .hero-meta, .notice, .toolbar, .card {
+      background: var(--card);
+      box-shadow: var(--shadow);
+      border-radius: var(--radius);
+    }
+    .hero-meta { padding: 14px 18px; color: var(--muted); font-size: 13px; }
+    .notice { padding: 18px 20px; margin-bottom: 18px; line-height: 1.8; font-size: 14px; }
+    .notice strong { color: var(--primary-deep); }
+    .toolbar { display: flex; gap: 12px; align-items: center; padding: 18px; margin-bottom: 18px; }
+    button, select {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      height: 42px;
+      padding: 0 14px;
+      font-size: 14px;
+      background: #fff;
+    }
+    button {
+      cursor: pointer;
+      color: #fff;
+      border-color: var(--primary);
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-deep) 100%);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+    .card { padding: 20px; }
+    .label { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+    .value { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
+    .sub { color: var(--muted); font-size: 13px; }
+    .focus { outline: 2px solid rgba(23, 104, 255, 0.22); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 16px 14px; border-bottom: 1px solid var(--line); }
+    th { font-size: 12px; color: var(--muted); }
+    td { font-size: 14px; }
+    tr:last-child td { border-bottom: none; }
+    .empty { color: var(--muted); text-align: center; padding: 36px 0; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="hero">
+      <div>
+        <h1>运营账户余额看板</h1>
+        <p>用于确认新版商家转账的出资账户是否真的有可用余额，默认重点查看运营账户。</p>
+      </div>
+      <div class="hero-meta" id="heroMeta">正在读取微信账户余额...</div>
+    </div>
+
+    <div class="notice">
+      <strong>怎么看这页？</strong><br />
+      新版“商家转账”通常从 <code>OPERATION</code> 运营账户出资。如果提现时报 <code>NOT_ENOUGH</code>，优先看运营账户的 <code>available_amount</code> 是否真的大于要转出的金额。<br />
+      如果你刚充值但这里还是 0，通常意味着钱还没真正进入运营账户可用余额，或者你充到了别的账户。
+    </div>
+
+    <div class="toolbar">
+      <label for="focusSelect">高亮账户</label>
+      <select id="focusSelect">
+        <option value="OPERATION">OPERATION 运营账户</option>
+        <option value="BASIC">BASIC 基本账户</option>
+        <option value="FEES">FEES 手续费账户</option>
+      </select>
+      <button id="refreshButton">刷新余额</button>
+    </div>
+
+    <div class="grid" id="cards"></div>
+
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>账户类型</th>
+            <th>可用余额</th>
+            <th>在途金额</th>
+            <th>说明</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr><td colspan="4" class="empty">正在加载...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const state = { focus: "OPERATION", balances: {} };
+    const heroMeta = document.getElementById("heroMeta");
+    const cards = document.getElementById("cards");
+    const tableBody = document.getElementById("tableBody");
+    const focusSelect = document.getElementById("focusSelect");
+
+    const labels = {
+      OPERATION: "运营账户",
+      BASIC: "基本账户",
+      FEES: "手续费账户",
+    };
+
+    function formatFen(fen) {
+      return `¥ ${(Number(fen || 0) / 100).toFixed(2)}`;
+    }
+
+    function explain(accountType) {
+      if (accountType === "OPERATION") return "新版商家转账通常从这里出资";
+      if (accountType === "BASIC") return "商户主账户，别和运营账户混淆";
+      return "手续费相关账户";
+    }
+
+    async function loadBalances() {
+      heroMeta.textContent = "正在读取微信账户余额...";
+      const response = await fetch(`/api/v1/admin/wechat-pay/balances?focus=${encodeURIComponent(state.focus)}`);
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload.code !== 0) {
+        throw new Error(payload.message || `请求失败: ${response.status}`);
+      }
+      state.focus = payload.data.focus;
+      state.balances = payload.data.balances || {};
+      render();
+    }
+
+    function render() {
+      const entries = ["OPERATION", "BASIC", "FEES"].map(key => state.balances[key]).filter(Boolean);
+      heroMeta.textContent = `当前重点账户：${state.focus}，最后刷新时间：${new Date().toLocaleString("zh-CN", { hour12: false })}`;
+
+      cards.innerHTML = entries.map(item => `
+        <div class="card ${item.account_type === state.focus ? "focus" : ""}">
+          <div class="label">${item.account_type} ${labels[item.account_type] || ""}</div>
+          <div class="value">${formatFen(item.available_amount)}</div>
+          <div class="sub">在途金额：${formatFen(item.pending_amount)}</div>
+        </div>
+      `).join("");
+
+      tableBody.innerHTML = entries.map(item => `
+        <tr>
+          <td>${item.account_type}</td>
+          <td>${formatFen(item.available_amount)}</td>
+          <td>${formatFen(item.pending_amount)}</td>
+          <td>${explain(item.account_type)}</td>
+        </tr>
+      `).join("");
+    }
+
+    document.getElementById("refreshButton").addEventListener("click", () => {
+      loadBalances().catch((error) => {
+        heroMeta.textContent = error.message || "读取失败";
+      });
+    });
+
+    focusSelect.addEventListener("change", (event) => {
+      state.focus = event.target.value;
+      loadBalances().catch((error) => {
+        heroMeta.textContent = error.message || "读取失败";
+      });
+    });
+
+    loadBalances().catch((error) => {
+      heroMeta.textContent = error.message || "读取失败";
+    });
+  </script>
+</body>
+</html>

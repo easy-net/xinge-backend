@@ -143,3 +143,11 @@ With `LOG_ALL_API_PAYLOADS=true`, every API request under `/api/` logs its reque
 With `UNSAFE_DISABLE_VALIDATION=true`, private endpoints bypass auth and required MP headers, and a synthetic user is auto-created from the request context. This mode is intentionally blocked in `production` and should only be used for local debugging.
 
 With `LOG_CURRENT_USER_RESOLUTION=true`, every private request logs which `user_id/open_id` the server resolved, along with request path and request id. This is useful when checking why `create_report` and `reports/list` do not appear to hit the same user context.
+
+If you want the withdrawal admin page to approve requests without calling real WeChat transfer validation for a while, set:
+
+```bash
+export UNSAFE_ADMIN_WITHDRAW_APPROVE=true
+```
+
+When this switch is enabled, the admin withdrawal approval endpoint marks the request as `paid` directly and writes a mock `transfer_bill_no`. This switch is intended only for temporary internal testing.

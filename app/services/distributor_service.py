@@ -1,17 +1,23 @@
 import logging
+import re
 from datetime import datetime
 
-from app.core.errors import ConflictError, ForbiddenError, NotFoundError
+from app.core.errors import ConflictError, ForbiddenError, NotFoundError, ValidationError
 from app.db.models.message import Message
+from app.integrations.wechat_pay import TransferResult
 from app.repositories.distributor_repository import DistributorRepository
 from app.repositories.report_repository import ReportRepository
+from app.repositories.user_repository import UserRepository
 
 
 class DistributorService:
-    def __init__(self, db):
+    def __init__(self, db, wechat_pay_client=None, settings=None):
         self.db = db
+        self.wechat_pay_client = wechat_pay_client
+        self.settings = settings
         self.repository = DistributorRepository(db)
         self.report_repository = ReportRepository(db)
+        self.user_repository = UserRepository(db)
 
     def me(self, *, user):
         profile = self._require_distributor(user)
@@ -75,6 +81,65 @@ class DistributorService:
             "updated_at": application.updated_at.isoformat() + "Z",
         }
 
+    def create_withdrawal(self, *, user, amount: int):
+        profile = self._require_distributor(user)
+        if amount <= 0:
+            raise ValidationError(message="amount must be greater than 0")
+
+        withdrawable_amount = max(profile.unsettled_commission, 0)
+        if amount > withdrawable_amount:
+            raise ValidationError(message="withdraw amount exceeds available balance")
+
+        receiver_name = (user.nickname or user.phone_masked or "微信用户{}".format(user.id)).strip()
+        receiver_masked = self._mask_wechat_account(user)
+        auto_approve_threshold = getattr(self.settings, "distributor_withdraw_auto_approve_fen", 10000) if self.settings else 10000
+        is_auto_transfer = amount < auto_approve_threshold
+        
+        # 先扣除余额，确保并发安全
+        profile.unsettled_commission = max(profile.unsettled_commission - amount, 0)
+        
+        withdraw = self.repository.create_withdrawal(
+            user_id=user.id,
+            withdraw_id=self._build_withdraw_id(user.id),
+            amount=amount,
+            account_name=receiver_name,
+            bank_name="微信零钱",
+            bank_account_masked=receiver_masked,
+            status="processing" if is_auto_transfer else "pending_review",
+        )
+
+        transfer_result = None
+        if is_auto_transfer:
+            try:
+                transfer_result = self._process_withdraw_transfer(withdrawal=withdraw, user=user, profile=profile)
+            except Exception as error:
+                logging.getLogger(__name__).exception(
+                    "distributor.withdraw.auto_transfer_failed withdraw_id=%s user_id=%s amount=%s",
+                    withdraw.withdraw_id,
+                    user.id,
+                    amount,
+                )
+                # 自动转账失败，改为待审核状态，由人工处理
+                self.repository.update_withdrawal_status(
+                    withdrawal=withdraw,
+                    status="pending_review",
+                    fail_reason=str(error),
+                )
+                transfer_result = None
+        
+        self.db.commit()
+        return {
+            "withdraw_id": withdraw.withdraw_id,
+            "amount": withdraw.amount,
+            "status": withdraw.status,
+            "channel_name": "微信零钱",
+            "receiver_name": receiver_name,
+            "receiver_masked": receiver_masked,
+            "created_at": withdraw.created_at.isoformat() + "Z",
+            "withdrawable_amount_after": profile.unsettled_commission,
+            "transfer_bill_no": getattr(transfer_result, "transfer_bill_no", ""),
+        }
+
     def list_withdrawals(self, *, user, page: int, page_size: int):
         self._require_distributor(user)
         items, total = self.repository.list_withdrawals_for_user(user_id=user.id, page=page, page_size=page_size)
@@ -84,12 +149,147 @@ class DistributorService:
                     "amount": item.amount,
                     "bank_account_masked": item.bank_account_masked,
                     "bank_name": item.bank_name,
+                    "channel_name": item.bank_name or "微信零钱",
+                    "receiver_name": item.account_name,
+                    "receiver_masked": item.bank_account_masked,
                     "completed_at": item.completed_at.isoformat() + "Z" if item.completed_at else None,
                     "created_at": item.created_at.isoformat() + "Z",
+                    "fail_reason": item.fail_reason or "",
                     "status": item.status,
+                    "transfer_bill_no": item.transfer_bill_no or "",
                     "withdraw_id": item.withdraw_id,
                 }
                 for item in items
+            ],
+            "page": page,
+            "page_size": page_size,
+            "page_total": (total + page_size - 1) // page_size if page_size else 0,
+            "total": total,
+        }
+
+    def list_downlines(self, *, user, page: int, page_size: int, level=None):
+        self._require_distributor(user)
+        items, total = self.repository.list_direct_downlines(
+            parent_distributor_id=user.id,
+            page=page,
+            page_size=page_size,
+            distributor_level=level,
+        )
+        return {
+            "list": [
+                {
+                    "avatar_url": downline_user.avatar_url,
+                    "distributor_level": downline_profile.distributor_level,
+                    "joined_at": downline_profile.created_at.isoformat() + "Z",
+                    "nickname": downline_user.nickname or downline_user.phone_masked or "用户{}".format(downline_user.id),
+                    "phone_masked": downline_user.phone_masked or None,
+                    "quota_remaining": max(downline_profile.quota_total - downline_profile.quota_used, 0),
+                    "quota_total": downline_profile.quota_total,
+                    "quota_used": downline_profile.quota_used,
+                    "report_stats": self.report_repository.stats_for_user(downline_user.id),
+                    "user_id": downline_user.id,
+                }
+                for downline_profile, downline_user in items
+            ],
+            "page": page,
+            "page_size": page_size,
+            "page_total": (total + page_size - 1) // page_size if page_size else 0,
+            "total": total,
+        }
+
+    def allocate_quota(self, *, user, downline_user_id: int, amount: int):
+        profile = self._require_distributor(user)
+        if profile.distributor_level == "campus":
+            raise ForbiddenError(message="campus distributor cannot allocate quota")
+        if amount <= 0:
+            raise ValidationError(message="amount must be greater than 0")
+
+        downline_user = self.user_repository.get_by_id(downline_user_id)
+        if downline_user is None:
+            raise NotFoundError(message="downline not found")
+        downline_profile = self.repository.get_profile_for_user(user_id=downline_user_id)
+        if downline_profile is None:
+            if user.role == "admin":
+                downline_user.role = "distributor"
+                downline_user.is_distributor = True
+                downline_profile = self.repository.create_profile(
+                    user_id=downline_user_id,
+                    distributor_level="campus",
+                    parent_distributor_id=user.id,
+                    quota_total=0,
+                )
+            else:
+                raise NotFoundError(message="downline not found")
+        if user.role != "admin" and downline_profile.parent_distributor_id != user.id:
+            raise ForbiddenError(message="downline is not directly managed by current distributor")
+        if user.role == "admin" and downline_profile.parent_distributor_id is None and downline_user_id != user.id:
+            downline_profile.parent_distributor_id = user.id
+
+        my_remaining_before = max(profile.quota_total - profile.quota_used, 0)
+        if amount > my_remaining_before:
+            raise ValidationError(message="quota is insufficient")
+
+        my_remaining_after = my_remaining_before - amount
+        downline_remaining_before = max(downline_profile.quota_total - downline_profile.quota_used, 0)
+        downline_remaining_after = downline_remaining_before + amount
+
+        profile.quota_used += amount
+        downline_profile.quota_total += amount
+
+        self.repository.create_quota_record(
+            user_id=user.id,
+            direction="out",
+            counterparty_user_id=downline_user_id,
+            counterparty_level=downline_profile.distributor_level,
+            amount=amount,
+            quota_before=my_remaining_before,
+            quota_after=my_remaining_after,
+            remark="分配给下级分销",
+        )
+        self.repository.create_quota_record(
+            user_id=downline_user_id,
+            direction="in",
+            counterparty_user_id=user.id,
+            counterparty_level=profile.distributor_level,
+            amount=amount,
+            quota_before=downline_remaining_before,
+            quota_after=downline_remaining_after,
+            remark="上级分配给我",
+        )
+        self.db.commit()
+        return {
+            "allocated_amount": amount,
+            "downline_quota": {
+                "nickname": getattr(downline_profile.user, "nickname", ""),
+                "quota_remaining": downline_remaining_after,
+                "quota_total": downline_profile.quota_total,
+                "user_id": downline_user_id,
+            },
+            "my_quota": {
+                "quota_allocated": profile.quota_used,
+                "quota_remaining": my_remaining_after,
+                "quota_total": profile.quota_total,
+            },
+        }
+
+    def list_quota_records(self, *, user, page: int, page_size: int):
+        self._require_distributor(user)
+        items, total = self.repository.list_quota_records_for_user(user_id=user.id, page=page, page_size=page_size)
+        return {
+            "list": [
+                {
+                    "record_id": record.id,
+                    "direction": record.direction,
+                    "counterparty_user_id": record.counterparty_user_id,
+                    "counterparty_name": counterparty.nickname if counterparty else "",
+                    "counterparty_level": record.counterparty_level,
+                    "quantity": record.amount,
+                    "quota_before": record.quota_before,
+                    "quota_after": record.quota_after,
+                    "created_at": record.created_at.isoformat() + "Z",
+                    "remark": record.remark,
+                }
+                for record, counterparty in items
             ],
             "page": page,
             "page_size": page_size,
@@ -172,6 +372,265 @@ class DistributorService:
             "user_id": user.id,
         }
 
+    def admin_list_withdrawals(self, *, page: int, page_size: int, status=None):
+        items, total = self.repository.list_withdrawals(page=page, page_size=page_size, status=status)
+        return {
+            "list": [
+                {
+                    "withdraw_id": withdrawal.withdraw_id,
+                    "user_id": withdrawal.user_id,
+                    "nickname": user.nickname or "用户{}".format(user.id),
+                    "avatar_url": user.avatar_url,
+                    "amount": withdrawal.amount,
+                    "status": withdrawal.status,
+                    "channel_name": withdrawal.bank_name or "微信零钱",
+                    "receiver_name": withdrawal.account_name,
+                    "receiver_masked": withdrawal.bank_account_masked,
+                    "created_at": withdrawal.created_at.isoformat() + "Z",
+                    "completed_at": withdrawal.completed_at.isoformat() + "Z" if withdrawal.completed_at else None,
+                    "fail_reason": withdrawal.fail_reason or "",
+                    "transfer_bill_no": withdrawal.transfer_bill_no or "",
+                }
+                for withdrawal, user in items
+            ],
+            "page": page,
+            "page_size": page_size,
+            "page_total": (total + page_size - 1) // page_size if page_size else 0,
+            "total": total,
+        }
+
+    def admin_approve_withdrawal(self, *, withdraw_id: str):
+        withdrawal = self._require_reviewable_withdrawal(withdraw_id)
+        user = withdrawal.user
+        profile = self._require_distributor(user)
+        if self._should_bypass_admin_withdraw_approval():
+            transfer_result = self._approve_withdrawal_without_validation(withdrawal=withdrawal, profile=profile)
+            self.db.commit()
+            return {
+                "withdraw_id": withdrawal.withdraw_id,
+                "status": withdrawal.status,
+                "amount": withdrawal.amount,
+                "transfer_state": transfer_result.state,
+                "transfer_bill_no": transfer_result.transfer_bill_no,
+                "package_info": transfer_result.package_info,
+                "completed_at": withdrawal.completed_at.isoformat() + "Z" if withdrawal.completed_at else None,
+            }
+        try:
+            transfer_result = self._process_withdraw_transfer(withdrawal=withdrawal, user=user, profile=profile)
+        except Exception as error:
+            profile.unsettled_commission += withdrawal.amount
+            self.repository.update_withdrawal_status(
+                withdrawal=withdrawal,
+                status="failed",
+                completed_at=datetime.utcnow(),
+                fail_reason=str(error),
+            )
+            self.db.commit()
+            raise
+        self.db.commit()
+        return {
+            "withdraw_id": withdrawal.withdraw_id,
+            "status": withdrawal.status,
+            "amount": withdrawal.amount,
+            "transfer_state": transfer_result.state,
+            "transfer_bill_no": transfer_result.transfer_bill_no,
+            "package_info": transfer_result.package_info,
+            "completed_at": withdrawal.completed_at.isoformat() + "Z" if withdrawal.completed_at else None,
+        }
+
+    def admin_reject_withdrawal(self, *, withdraw_id: str):
+        withdrawal = self._require_reviewable_withdrawal(withdraw_id)
+        profile = self.repository.get_profile_for_user(user_id=withdrawal.user_id)
+        if profile is not None:
+            profile.unsettled_commission += withdrawal.amount
+        self.repository.update_withdrawal_status(withdrawal=withdrawal, status="rejected", completed_at=datetime.utcnow())
+        self.db.commit()
+        return {
+            "withdraw_id": withdrawal.withdraw_id,
+            "status": withdrawal.status,
+            "amount": withdrawal.amount,
+        }
+
+    def admin_seed_quota_records(self, *, user_id: int):
+        user = self.user_repository.get_by_id(user_id)
+        if user is None:
+            raise NotFoundError(message="user not found")
+
+        user.role = "distributor"
+        user.is_distributor = True
+        profile = self.repository.get_profile_for_user(user_id=user.id)
+        if profile is None:
+            profile = self.repository.create_profile(
+                user_id=user.id,
+                distributor_level="city",
+                quota_total=500,
+            )
+        elif profile.quota_total < 500:
+            profile.quota_total = 500
+
+        parent_user = self.user_repository.get_by_openid("seed-parent-{}".format(user.id))
+        if parent_user is None:
+            parent_user = self.user_repository.create_user(
+                openid="seed-parent-{}".format(user.id),
+                unionid="seed-parent-union-{}".format(user.id),
+            )
+        parent_user.nickname = parent_user.nickname or "测试上级分销"
+        parent_user.role = "distributor"
+        parent_user.is_distributor = True
+        parent_profile = self.repository.get_profile_for_user(user_id=parent_user.id)
+        if parent_profile is None:
+            parent_profile = self.repository.create_profile(
+                user_id=parent_user.id,
+                distributor_level="strategic",
+                quota_total=1000,
+            )
+
+        child_user = self.user_repository.get_by_openid("seed-child-{}".format(user.id))
+        if child_user is None:
+            child_user = self.user_repository.create_user(
+                openid="seed-child-{}".format(user.id),
+                unionid="seed-child-union-{}".format(user.id),
+            )
+        child_user.nickname = child_user.nickname or "测试城市分销"
+        child_user.role = "distributor"
+        child_user.is_distributor = True
+        child_profile = self.repository.get_profile_for_user(user_id=child_user.id)
+        if child_profile is None:
+            child_profile = self.repository.create_profile(
+                user_id=child_user.id,
+                distributor_level="campus",
+                parent_distributor_id=user.id,
+                quota_total=120,
+            )
+        else:
+            child_profile.parent_distributor_id = user.id
+
+        profile.parent_distributor_id = parent_user.id
+
+        # 上级分配给我
+        self.repository.create_quota_record(
+            user_id=user.id,
+            direction="in",
+            counterparty_user_id=parent_user.id,
+            counterparty_level=parent_profile.distributor_level,
+            amount=300,
+            quota_before=200,
+            quota_after=500,
+            remark="上级分配给我",
+        )
+        # 我分配给下级
+        self.repository.create_quota_record(
+            user_id=user.id,
+            direction="out",
+            counterparty_user_id=child_user.id,
+            counterparty_level=child_profile.distributor_level,
+            amount=100,
+            quota_before=500,
+            quota_after=400,
+            remark="分配给城市分销",
+        )
+        self.repository.create_quota_record(
+            user_id=user.id,
+            direction="out",
+            counterparty_user_id=child_user.id,
+            counterparty_level=child_profile.distributor_level,
+            amount=50,
+            quota_before=400,
+            quota_after=350,
+            remark="分配给城市分销",
+        )
+        # 下级视角也补一条收入记录，方便切账号时查看
+        self.repository.create_quota_record(
+            user_id=child_user.id,
+            direction="in",
+            counterparty_user_id=user.id,
+            counterparty_level=profile.distributor_level,
+            amount=100,
+            quota_before=20,
+            quota_after=120,
+            remark="上级分配给我",
+        )
+
+        self.db.commit()
+        return {
+            "user_id": user.id,
+            "seeded": 4,
+            "parent_user_id": parent_user.id,
+            "child_user_id": child_user.id,
+            "distributor_level": profile.distributor_level,
+        }
+
+    def admin_list_distributors(self, *, page: int, page_size: int, level=None):
+        items, total = self.repository.list_profiles(page=page, page_size=page_size, distributor_level=level)
+        return {
+            "list": [
+                {
+                    "user_id": profile.user_id,
+                    "nickname": distributor_user.nickname,
+                    "avatar_url": distributor_user.avatar_url,
+                    "distributor_level": profile.distributor_level,
+                    "parent_distributor_id": profile.parent_distributor_id,
+                    "quota_total": profile.quota_total,
+                    "quota_used": profile.quota_used,
+                    "quota_remaining": max(profile.quota_total - profile.quota_used, 0),
+                    "created_at": profile.created_at.isoformat() + "Z",
+                }
+                for profile, distributor_user in items
+            ],
+            "page": page,
+            "page_size": page_size,
+            "page_total": (total + page_size - 1) // page_size if page_size else 0,
+            "total": total,
+        }
+
+    def admin_list_distributor_downlines(self, *, user_id: int, page: int, page_size: int, level=None):
+        user = self.user_repository.get_by_id(user_id)
+        if user is None:
+            raise NotFoundError(message="user not found")
+        if user.role == "admin":
+            users = self.user_repository.list_users(page=page, page_size=page_size, exclude_user_id=user.id)
+            list_items = []
+            for item in users:
+                profile = self.repository.get_profile_for_user(user_id=item.id)
+                profile_level = getattr(profile, "distributor_level", "campus")
+                if level and profile_level != level:
+                    continue
+                quota_total = getattr(profile, "quota_total", 0)
+                quota_used = getattr(profile, "quota_used", 0)
+                joined_at = getattr(profile, "created_at", item.created_at)
+                list_items.append(
+                    {
+                        "avatar_url": item.avatar_url,
+                        "distributor_level": profile_level,
+                        "joined_at": joined_at.isoformat() + "Z",
+                        "nickname": item.nickname,
+                        "quota_remaining": max(quota_total - quota_used, 0),
+                        "quota_total": quota_total,
+                        "quota_used": quota_used,
+                        "report_stats": self.report_repository.stats_for_user(item.id),
+                        "user_id": item.id,
+                    }
+                )
+            return {
+                "list": list_items,
+                "page": page,
+                "page_size": page_size,
+                "page_total": 1 if list_items else 0,
+                "total": len(list_items),
+                "source_user_id": user_id,
+            }
+        data = self.list_downlines(user=user, page=page, page_size=page_size, level=level)
+        data["source_user_id"] = user_id
+        return data
+
+    def admin_allocate_quota(self, *, user_id: int, downline_user_id: int, amount: int):
+        user = self.user_repository.get_by_id(user_id)
+        if user is None:
+            raise NotFoundError(message="user not found")
+        data = self.allocate_quota(user=user, downline_user_id=downline_user_id, amount=amount)
+        data["source_user_id"] = user_id
+        return data
+
     def _require_distributor(self, user):
         logger = logging.getLogger(__name__)
         profile = self.repository.get_profile_for_user(user_id=user.id)
@@ -191,6 +650,197 @@ class DistributorService:
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
         return "app_{}_{}".format(timestamp, str(user_id).zfill(6))
 
+    def _build_withdraw_id(self, user_id: int) -> str:
+        timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+        return "WD{}{}".format(timestamp, str(user_id).zfill(6))
+
+    def _process_withdraw_transfer(self, *, withdrawal, user, profile):
+        """处理微信转账，支持同步成功和异步受理两种模式
+        
+        返回:
+            TransferResult: 转账结果
+            
+        状态处理:
+            - SUCCESS: 转账成功，更新为 paid
+            - ACCEPTED/PROCESSING: 已受理，更新为 processing，等待异步回调
+            - 其他: 视为失败，抛出异常
+        """
+        if not self.wechat_pay_client:
+            raise ValidationError(message="wechat pay client is not configured")
+        if not user.openid:
+            raise ValidationError(message="user openid is missing")
+        out_bill_no = self._build_wechat_transfer_bill_no(withdrawal.withdraw_id)
+        transfer_result = self.wechat_pay_client.transfer_to_balance(
+            out_bill_no=out_bill_no,
+            amount=withdrawal.amount,
+            openid=user.openid,
+            user_name=withdrawal.account_name,
+        )
+        transfer_state = (transfer_result.state or "").upper()
+        
+        if transfer_state == "SUCCESS":
+            # 同步成功，直接标记为已到账
+            completed_at = datetime.utcnow()
+            self.repository.update_withdrawal_status(
+                withdrawal=withdrawal,
+                status="paid",
+                completed_at=completed_at,
+                transfer_bill_no=transfer_result.transfer_bill_no,
+            )
+            profile.total_withdrawn_amount += withdrawal.amount
+            logging.getLogger(__name__).info(
+                "distributor.withdraw.transfer_success withdraw_id=%s transfer_bill_no=%s amount=%s",
+                withdrawal.withdraw_id,
+                transfer_result.transfer_bill_no,
+                withdrawal.amount,
+            )
+        elif transfer_state in ("ACCEPTED", "PROCESSING", "WAIT_PAY", "WAIT_USER_CONFIRM"):
+            # 已受理，等待异步回调
+            self.repository.update_withdrawal_status(
+                withdrawal=withdrawal,
+                status="processing",
+                completed_at=None,
+                transfer_bill_no=transfer_result.transfer_bill_no,
+            )
+            logging.getLogger(__name__).info(
+                "distributor.withdraw.transfer_accepted withdraw_id=%s transfer_bill_no=%s amount=%s state=%s",
+                withdrawal.withdraw_id,
+                transfer_result.transfer_bill_no,
+                withdrawal.amount,
+                transfer_state,
+            )
+        else:
+            # 其他状态视为失败
+            raise ValidationError(message=f"transfer failed with state: {transfer_state}")
+            
+        return transfer_result
+
+    def _build_wechat_transfer_bill_no(self, withdraw_id: str) -> str:
+        sanitized = re.sub(r"[^0-9A-Za-z]", "", withdraw_id or "").upper()
+        if not sanitized:
+            raise ValidationError(message="invalid withdraw id for wechat transfer")
+        return sanitized[:32]
+
+    def _should_bypass_admin_withdraw_approval(self) -> bool:
+        return bool(self.settings and getattr(self.settings, "unsafe_admin_withdraw_approve", False))
+
+    def _approve_withdrawal_without_validation(self, *, withdrawal, profile) -> TransferResult:
+        transfer_bill_no = "mock-admin-{}".format(self._build_wechat_transfer_bill_no(withdrawal.withdraw_id))
+        completed_at = datetime.utcnow()
+        self.repository.update_withdrawal_status(
+            withdrawal=withdrawal,
+            status="paid",
+            completed_at=completed_at,
+            transfer_bill_no=transfer_bill_no,
+            fail_reason="",
+        )
+        profile.total_withdrawn_amount += withdrawal.amount
+        return TransferResult(
+            out_bill_no=self._build_wechat_transfer_bill_no(withdrawal.withdraw_id),
+            transfer_bill_no=transfer_bill_no,
+            state="SUCCESS",
+            package_info="unsafe-admin-withdraw-approve",
+        )
+
+    def _mask_wechat_account(self, user) -> str:
+        if user.phone_masked:
+            return user.phone_masked
+        if user.openid:
+            return "{}***{}".format(user.openid[:3], user.openid[-4:])
+        return "wx-user-{}".format(user.id)
+
+    def handle_transfer_callback(self, *, transfer_bill_no: str, state: str, out_bill_no: str = "", fail_reason: str = ""):
+        """处理微信支付转账异步回调
+        
+        Args:
+            transfer_bill_no: 微信转账单号
+            state: 转账状态 (SUCCESS/FAILED)
+            out_bill_no: 商户转账单号（可选，用于关联提现记录）
+            
+        处理逻辑:
+            - SUCCESS: 更新提现状态为 paid，更新累计提现金额
+            - FAILED: 将金额退回用户余额，更新状态为 failed
+        """
+        logger = logging.getLogger(__name__)
+        
+        withdrawal = None
+        withdraw_id = self._extract_withdraw_id_from_bill_no(out_bill_no) if out_bill_no else None
+        if withdraw_id:
+            withdrawal = self.repository.get_withdrawal_by_withdraw_id(withdraw_id=withdraw_id)
+        if withdrawal is None and transfer_bill_no:
+            withdrawal = self.repository.get_withdrawal_by_transfer_bill_no(transfer_bill_no=transfer_bill_no)
+        if withdrawal is None:
+            logger.error(
+                "distributor.withdraw.callback.not_found withdraw_id=%s transfer_bill_no=%s",
+                withdraw_id,
+                transfer_bill_no,
+            )
+            raise NotFoundError(message="withdrawal not found")
+        withdraw_id = withdrawal.withdraw_id
+            
+        if withdrawal.status not in ("processing", "pending_review"):
+            logger.warning("distributor.withdraw.callback.already_processed withdraw_id=%s current_status=%s", 
+                          withdraw_id, withdrawal.status)
+            return {"withdraw_id": withdraw_id, "status": withdrawal.status, "message": "already processed"}
+        
+        profile = self.repository.get_profile_for_user(user_id=withdrawal.user_id)
+        state_upper = (state or "").upper()
+        
+        if state_upper == "SUCCESS":
+            # 转账成功
+            completed_at = datetime.utcnow()
+            self.repository.update_withdrawal_status(
+                withdrawal=withdrawal,
+                status="paid",
+                completed_at=completed_at,
+                transfer_bill_no=transfer_bill_no,
+            )
+            if profile:
+                profile.total_withdrawn_amount += withdrawal.amount
+            logger.info(
+                "distributor.withdraw.callback.success withdraw_id=%s transfer_bill_no=%s amount=%s",
+                withdraw_id, transfer_bill_no, withdrawal.amount
+            )
+            self.db.commit()
+            return {
+                "withdraw_id": withdraw_id,
+                "status": "paid",
+                "amount": withdrawal.amount,
+                "transfer_bill_no": transfer_bill_no,
+            }
+        else:
+            # 转账失败，退回金额
+            if profile:
+                profile.unsettled_commission += withdrawal.amount
+            self.repository.update_withdrawal_status(
+                withdrawal=withdrawal,
+                status="failed",
+                completed_at=datetime.utcnow(),
+                transfer_bill_no=transfer_bill_no,
+                fail_reason=fail_reason or state,
+            )
+            logger.error(
+                "distributor.withdraw.callback.failed withdraw_id=%s transfer_bill_no=%s amount=%s state=%s",
+                withdraw_id, transfer_bill_no, withdrawal.amount, state
+            )
+            self.db.commit()
+            return {
+                "withdraw_id": withdraw_id,
+                "status": "failed",
+                "amount": withdrawal.amount,
+                "refunded": True,
+            }
+
+    def _extract_withdraw_id_from_bill_no(self, out_bill_no: str) -> str:
+        """从商户转账单号中提取提现ID
+        
+        商户单号格式: WD20250426120000100001（由 _build_wechat_transfer_bill_no 生成）
+        直接返回原字符串，因为提现ID已经是这种格式
+        """
+        # 如果 out_bill_no 被截断或转换过，需要还原
+        # 目前直接返回，因为 _build_wechat_transfer_bill_no 已经处理了格式
+        return out_bill_no if out_bill_no.startswith("WD") else None
+
     def _require_pending_application(self, application_id: str):
         application = self.repository.get_application_by_application_id(application_id=application_id)
         if application is None:
@@ -198,6 +848,14 @@ class DistributorService:
         if application.status != "pending":
             raise ConflictError(message="application is already reviewed")
         return application
+
+    def _require_reviewable_withdrawal(self, withdraw_id: str):
+        withdrawal = self.repository.get_withdrawal_by_withdraw_id(withdraw_id=withdraw_id)
+        if withdrawal is None:
+            raise NotFoundError(message="withdrawal not found")
+        if withdrawal.status != "pending_review":
+            raise ConflictError(message="withdrawal is already reviewed")
+        return withdrawal
 
     def _default_quota_for_level(self, distributor_level: str) -> int:
         defaults = {

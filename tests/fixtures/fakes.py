@@ -1,5 +1,5 @@
 from app.integrations.wechat_auth import WechatAuthClient, WechatSessionInfo
-from app.integrations.wechat_pay import PaymentParams, WechatPayClient
+from app.integrations.wechat_pay import BalanceResult, PaymentParams, TransferResult, WechatPayClient
 
 
 class FakeWechatAuthClient(WechatAuthClient):
@@ -36,3 +36,20 @@ class FakeWechatPayClient(WechatPayClient):
             status=payload.get("status", "success"),
             paid_at=payload.get("paid_at", "2026-04-20T10:00:00Z"),
         )
+
+    def transfer_to_balance(self, *, out_bill_no: str, amount: int, openid: str, user_name: str = "") -> TransferResult:
+        return TransferResult(
+            out_bill_no=out_bill_no,
+            transfer_bill_no="fake-transfer-{}".format(out_bill_no),
+            state="SUCCESS",
+            package_info="fake",
+        )
+
+    def query_balance(self, *, account_type: str) -> BalanceResult:
+        normalized = (account_type or "").strip().upper() or "OPERATION"
+        fixtures = {
+            "OPERATION": BalanceResult(account_type="OPERATION", available_amount=123456, pending_amount=2000),
+            "BASIC": BalanceResult(account_type="BASIC", available_amount=456789, pending_amount=0),
+            "FEES": BalanceResult(account_type="FEES", available_amount=7890, pending_amount=0),
+        }
+        return fixtures.get(normalized, BalanceResult(account_type=normalized, available_amount=0, pending_amount=0))

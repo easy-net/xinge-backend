@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>分销配额分配台</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: rgba(255,255,255,0.94);
+      --text: #14213d;
+      --muted: #667085;
+      --line: #e6ebf2;
+      --primary: #1768ff;
+      --primary-deep: #0f52d6;
+      --success: #0f9f6e;
+      --danger: #d64545;
+      --shadow: 0 18px 50px rgba(20, 33, 61, 0.08);
+      --radius: 18px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(23, 104, 255, 0.12), transparent 28%),
+        linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
+    }
+    .page { max-width: 1320px; margin: 0 auto; padding: 32px 20px 48px; }
+    .hero {
+      display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 24px;
+    }
+    .hero h1 { margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.5px; }
+    .hero p { margin: 10px 0 0; color: var(--muted); font-size: 14px; }
+    .hero-meta {
+      padding: 14px 18px; border-radius: 16px; background: var(--card); box-shadow: var(--shadow); color: var(--muted); font-size: 13px;
+    }
+    .layout {
+      display: grid; grid-template-columns: 420px 1fr; gap: 18px;
+    }
+    .panel {
+      border-radius: 24px; background: var(--card); box-shadow: var(--shadow); overflow: hidden;
+    }
+    .panel-head {
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+      padding: 18px 18px 12px; border-bottom: 1px solid var(--line);
+    }
+    .panel-head h2 { margin: 0; font-size: 18px; }
+    .panel-body { padding: 18px; }
+    .toolbar, .inline-toolbar {
+      display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+    }
+    .toolbar { margin-bottom: 14px; }
+    select, input, button {
+      border: 1px solid var(--line); border-radius: 12px; height: 42px; padding: 0 14px; font-size: 14px; background: #fff;
+    }
+    button { cursor: pointer; transition: transform .15s ease, box-shadow .15s ease; }
+    button:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(23,104,255,0.14); }
+    .btn-primary {
+      color: #fff; border-color: var(--primary);
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-deep) 100%);
+    }
+    .btn-success {
+      color: #fff; border-color: var(--success);
+      background: linear-gradient(135deg, #19ab73 0%, var(--success) 100%);
+    }
+    .hint { color: var(--muted); font-size: 13px; margin-top: 8px; line-height: 1.6; }
+    .list { display: grid; gap: 12px; }
+    .card {
+      border: 1px solid var(--line); border-radius: 18px; padding: 16px; background: rgba(255,255,255,0.95);
+    }
+    .card.active {
+      border-color: rgba(23,104,255,0.35);
+      box-shadow: 0 12px 30px rgba(23,104,255,0.12);
+    }
+    .card-title {
+      display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 10px;
+    }
+    .card-title strong { font-size: 16px; }
+    .meta, .small {
+      color: var(--muted); font-size: 13px; line-height: 1.6;
+    }
+    .pill {
+      display: inline-flex; align-items: center; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+      color: var(--primary); background: rgba(23,104,255,0.12);
+    }
+    .grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px;
+    }
+    .stat {
+      padding: 16px; border-radius: 18px; background: rgba(255,255,255,0.95); border: 1px solid var(--line);
+    }
+    .stat-label { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+    .stat-value { font-size: 28px; font-weight: 700; }
+    .empty {
+      padding: 56px 16px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 18px;
+    }
+    .actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 14px; }
+    .toast {
+      position: fixed; right: 20px; bottom: 20px; min-width: 220px; max-width: 360px; padding: 14px 16px; border-radius: 14px;
+      background: rgba(20,33,61,0.96); color: #fff; box-shadow: 0 18px 48px rgba(20,33,61,0.24);
+      opacity: 0; pointer-events: none; transform: translateY(12px); transition: all .18s ease;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    @media (max-width: 1080px) {
+      .layout { grid-template-columns: 1fr; }
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="hero">
+      <div>
+        <h1>分销配额分配台</h1>
+        <p>后台直接选择分销商与其直属下级，完成报告配额分配，并即时看到双方配额变化。</p>
+      </div>
+      <div class="hero-meta" id="heroMeta">正在加载分销商列表...</div>
+    </div>
+
+    <div class="layout">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>分销商列表</h2>
+          <div class="inline-toolbar">
+            <select id="levelFilter">
+              <option value="">全部级别</option>
+              <option value="strategic">strategic</option>
+              <option value="city">city</option>
+              <option value="campus">campus</option>
+            </select>
+            <button class="btn-primary" id="refreshUsersButton">刷新</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="hint">先选一个拥有直属下级的上级分销商，再在右侧执行配额分配。</div>
+          <div class="list" id="userList">
+            <div class="empty">正在加载分销商...</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>直属下级与分配操作</h2>
+          <div class="inline-toolbar">
+            <select id="downlineLevelFilter">
+              <option value="">全部下级</option>
+              <option value="city">city</option>
+              <option value="campus">campus</option>
+            </select>
+            <button class="btn-primary" id="refreshDownlinesButton">刷新下级</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="grid">
+            <div class="stat">
+              <div class="stat-label">当前上级</div>
+              <div class="stat-value" id="selectedUserName">-</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">可分配余额</div>
+              <div class="stat-value" id="selectedUserQuota">0</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">直属下级数</div>
+              <div class="stat-value" id="selectedDownlineCount">0</div>
+            </div>
+          </div>
+
+          <div class="toolbar">
+            <label for="amountInput">分配数量</label>
+            <input id="amountInput" type="number" min="1" step="1" placeholder="输入报告配额数量" />
+            <button class="btn-success" id="allocateButton">执行分配</button>
+          </div>
+
+          <div class="hint" id="allocationHint">请先从左侧选择上级分销商，再从下方选择一个直属下级。</div>
+
+          <div class="list" id="downlineList">
+            <div class="empty">尚未选择上级分销商</div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const state = {
+      users: [],
+      downlines: [],
+      level: "",
+      downlineLevel: "",
+      selectedUser: null,
+      selectedDownline: null,
+    };
+
+    const userList = document.getElementById("userList");
+    const downlineList = document.getElementById("downlineList");
+    const heroMeta = document.getElementById("heroMeta");
+    const levelFilter = document.getElementById("levelFilter");
+    const downlineLevelFilter = document.getElementById("downlineLevelFilter");
+    const selectedUserName = document.getElementById("selectedUserName");
+    const selectedUserQuota = document.getElementById("selectedUserQuota");
+    const selectedDownlineCount = document.getElementById("selectedDownlineCount");
+    const amountInput = document.getElementById("amountInput");
+    const allocationHint = document.getElementById("allocationHint");
+    const toast = document.getElementById("toast");
+
+    function showToast(message, isError = false) {
+      toast.textContent = message;
+      toast.style.background = isError ? "rgba(160, 34, 34, 0.96)" : "rgba(20, 33, 61, 0.96)";
+      toast.classList.add("show");
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => toast.classList.remove("show"), 2200);
+    }
+
+    async function requestJson(url, options = {}) {
+      const response = await fetch(url, {
+        headers: { "Content-Type": "application/json" },
+        ...options,
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload.code !== 0) {
+        throw new Error(payload.message || `请求失败: ${response.status}`);
+      }
+      return payload;
+    }
+
+    function formatNumber(value) {
+      return Number(value || 0).toLocaleString("zh-CN");
+    }
+
+    function renderUsers() {
+      if (!state.users.length) {
+        userList.innerHTML = '<div class="empty">当前筛选条件下没有分销商</div>';
+        return;
+      }
+      userList.innerHTML = state.users.map(user => `
+        <div class="card ${state.selectedUser && state.selectedUser.user_id === user.user_id ? "active" : ""}" data-user-id="${user.user_id}">
+          <div class="card-title">
+            <div>
+              <strong>${user.nickname || "未命名分销商"}</strong>
+              <div class="small">UID: ${user.user_id}</div>
+            </div>
+            <span class="pill">${user.distributor_level}</span>
+          </div>
+          <div class="meta">父级 UID: ${user.parent_distributor_id || "-"}</div>
+          <div class="meta">总配额 ${formatNumber(user.quota_total)} / 已分配 ${formatNumber(user.quota_used)} / 剩余 ${formatNumber(user.quota_remaining)}</div>
+        </div>
+      `).join("");
+    }
+
+    function renderDownlines() {
+      if (!state.selectedUser) {
+        downlineList.innerHTML = '<div class="empty">尚未选择上级分销商</div>';
+        return;
+      }
+      if (!state.downlines.length) {
+        downlineList.innerHTML = '<div class="empty">该分销商当前没有符合筛选条件的直属下级</div>';
+        return;
+      }
+      downlineList.innerHTML = state.downlines.map(item => `
+        <div class="card ${state.selectedDownline && state.selectedDownline.user_id === item.user_id ? "active" : ""}" data-downline-id="${item.user_id}">
+          <div class="card-title">
+            <div>
+              <strong>${item.nickname || "未命名下级"}</strong>
+              <div class="small">UID: ${item.user_id}</div>
+            </div>
+            <span class="pill">${item.distributor_level}</span>
+          </div>
+          <div class="meta">配额总量 ${formatNumber(item.quota_total)} / 已用 ${formatNumber(item.quota_used)} / 剩余 ${formatNumber(item.quota_remaining)}</div>
+          <div class="meta">报告统计：总 ${formatNumber(item.report_stats.total_count)}，已付费 ${formatNumber(item.report_stats.paid_count)}，未付费 ${formatNumber(item.report_stats.unpaid_count)}</div>
+        </div>
+      `).join("");
+    }
+
+    async function loadUsers() {
+      heroMeta.textContent = "正在加载分销商列表...";
+      const params = new URLSearchParams({ page: "1", page_size: "100" });
+      if (state.level) params.set("level", state.level);
+      const payload = await requestJson(`/api/v1/admin/distributor/users?${params.toString()}`);
+      state.users = payload.data.list;
+      if (state.selectedUser) {
+        state.selectedUser = state.users.find(item => item.user_id === state.selectedUser.user_id) || null;
+      }
+      renderUsers();
+      heroMeta.textContent = `当前共 ${payload.data.total} 位分销商，筛选级别：${state.level || "全部"}`;
+      updateSelectedSummary();
+    }
+
+    async function loadDownlines() {
+      if (!state.selectedUser) {
+        state.downlines = [];
+        state.selectedDownline = null;
+        renderDownlines();
+        updateSelectedSummary();
+        return;
+      }
+      const params = new URLSearchParams({ page: "1", page_size: "100" });
+      if (state.downlineLevel) params.set("level", state.downlineLevel);
+      const payload = await requestJson(`/api/v1/admin/distributor/users/${state.selectedUser.user_id}/downlines?${params.toString()}`);
+      state.downlines = payload.data.list;
+      if (state.selectedDownline) {
+        state.selectedDownline = state.downlines.find(item => item.user_id === state.selectedDownline.user_id) || null;
+      }
+      renderDownlines();
+      updateSelectedSummary();
+    }
+
+    function updateSelectedSummary() {
+      selectedUserName.textContent = state.selectedUser ? (state.selectedUser.nickname || `UID ${state.selectedUser.user_id}`) : "-";
+      selectedUserQuota.textContent = state.selectedUser ? formatNumber(state.selectedUser.quota_remaining) : "0";
+      selectedDownlineCount.textContent = String(state.downlines.length);
+      if (!state.selectedUser) {
+        allocationHint.textContent = "请先从左侧选择上级分销商，再从下方选择一个直属下级。";
+      } else if (!state.selectedDownline) {
+        allocationHint.textContent = "已选中上级分销商，请在下方选择一个直属下级。";
+      } else {
+        allocationHint.textContent = `将从 ${state.selectedUser.nickname || state.selectedUser.user_id} 向 ${state.selectedDownline.nickname || state.selectedDownline.user_id} 分配配额。`;
+      }
+    }
+
+    async function allocateQuota() {
+      if (!state.selectedUser) throw new Error("请先选择上级分销商");
+      if (!state.selectedDownline) throw new Error("请先选择直属下级");
+      const amount = Number(amountInput.value);
+      if (!Number.isInteger(amount) || amount <= 0) {
+        throw new Error("请输入大于 0 的整数配额");
+      }
+      const payload = await requestJson(`/api/v1/admin/distributor/users/${state.selectedUser.user_id}/quota/allocate`, {
+        method: "POST",
+        body: JSON.stringify({
+          downline_user_id: state.selectedDownline.user_id,
+          amount,
+        }),
+      });
+      showToast(`分配成功：${payload.data.allocated_amount} 份`);
+      amountInput.value = "";
+      await loadUsers();
+      await loadDownlines();
+    }
+
+    userList.addEventListener("click", async (event) => {
+      const card = event.target.closest("[data-user-id]");
+      if (!card) return;
+      const userId = Number(card.dataset.userId);
+      state.selectedUser = state.users.find(item => item.user_id === userId) || null;
+      state.selectedDownline = null;
+      renderUsers();
+      await loadDownlines();
+    });
+
+    downlineList.addEventListener("click", (event) => {
+      const card = event.target.closest("[data-downline-id]");
+      if (!card) return;
+      const userId = Number(card.dataset.downlineId);
+      state.selectedDownline = state.downlines.find(item => item.user_id === userId) || null;
+      renderDownlines();
+      updateSelectedSummary();
+    });
+
+    document.getElementById("refreshUsersButton").addEventListener("click", async () => {
+      state.level = levelFilter.value;
+      try {
+        await loadUsers();
+        await loadDownlines();
+      } catch (error) {
+        showToast(error.message, true);
+      }
+    });
+
+    document.getElementById("refreshDownlinesButton").addEventListener("click", async () => {
+      state.downlineLevel = downlineLevelFilter.value;
+      try {
+        await loadDownlines();
+      } catch (error) {
+        showToast(error.message, true);
+      }
+    });
+
+    document.getElementById("allocateButton").addEventListener("click", async () => {
+      try {
+        await allocateQuota();
+      } catch (error) {
+        showToast(error.message, true);
+      }
+    });
+
+    async function boot() {
+      try {
+        state.level = levelFilter.value;
+        await loadUsers();
+      } catch (error) {
+        heroMeta.textContent = "加载失败";
+        showToast(error.message, true);
+      }
+    }
+
+    boot();
+  </script>
+</body>
+</html>

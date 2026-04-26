@@ -248,3 +248,31 @@ def test_mp_distributor_withdrawals_requires_distributor_role(client):
 
     assert response.status_code == 403
     assert response.json()["message"] == "distributor access required"
+
+
+def test_mp_distributor_downlines_returns_direct_downlines(client, db_session):
+    seed_distributor_user(client, db_session)
+
+    response = client.post("/api/v1/mp/distributor/downlines", headers=auth_headers(), json={"page": 1, "page_size": 20})
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["total"] == 2
+    levels = {item["distributor_level"] for item in data["list"]}
+    assert levels == {"city", "campus"}
+    assert all("report_stats" in item for item in data["list"])
+
+
+def test_mp_distributor_downlines_supports_level_filter(client, db_session):
+    seed_distributor_user(client, db_session)
+
+    response = client.post(
+        "/api/v1/mp/distributor/downlines",
+        headers=auth_headers(),
+        json={"page": 1, "page_size": 20, "level": "campus"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["total"] == 1
+    assert data["list"][0]["distributor_level"] == "campus"

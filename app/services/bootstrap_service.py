@@ -1,10 +1,13 @@
 import app.db.models  # noqa: F401
 from sqlalchemy import inspect
+from sqlalchemy.exc import IntegrityError
 
 from app.db.base import Base
 from app.db.models.product_config import ProductConfig
 from app.db.models.school import College, Major, School
+from app.repositories.distributor_repository import DistributorRepository
 from app.repositories.product_config_repository import ProductConfigRepository
+from app.repositories.user_repository import UserRepository
 
 SCHOOL_FIXTURES = [
     {
@@ -320,6 +323,7 @@ class BootstrapService:
         self._patch_legacy_schema()
         session = self.session_factory()
         try:
+            self._seed_default_admin(session)
             repository = ProductConfigRepository(session)
             if repository.get_current() is None:
                 session.add(
@@ -344,11 +348,36 @@ class BootstrapService:
         finally:
             session.close()
 
+    def _seed_default_admin(self, session):
+        user_repository = UserRepository(session)
+        distributor_repository = DistributorRepository(session)
+        admin_user = user_repository.get_by_openid("system-admin-openid")
+        if admin_user is None:
+            try:
+                admin_user = user_repository.create_user(openid="system-admin-openid", unionid="system-admin-unionid")
+                session.flush()
+            except IntegrityError:
+                session.rollback()
+                admin_user = user_repository.get_by_openid("system-admin-openid")
+                if admin_user is None:
+                    raise
+        admin_user.nickname = admin_user.nickname or "admin"
+        admin_user.role = "admin"
+        admin_user.is_distributor = True
+        admin_profile = distributor_repository.get_profile_for_user(user_id=admin_user.id)
+        if admin_profile is None:
+            distributor_repository.create_profile(
+                user_id=admin_user.id,
+                distributor_level="strategic",
+                quota_total=999999,
+            )
+        elif admin_profile.quota_total < 999999:
+            admin_profile.quota_total = 999999
+        session.commit()
+
     def _patch_legacy_schema(self):
-        if self.engine.dialect.name != "sqlite":
-            return
         inspector = inspect(self.engine)
-        self._ensure_sqlite_columns(
+        self._ensure_columns(
             inspector=inspector,
             table_name="distributor_applications",
             columns={
@@ -357,8 +386,16 @@ class BootstrapService:
                 "reason": "VARCHAR(255) NOT NULL DEFAULT ''",
             },
         )
+        self._ensure_columns(
+            inspector=inspector,
+            table_name="distributor_withdrawals",
+            columns={
+                "transfer_bill_no": "VARCHAR(64) NOT NULL DEFAULT ''",
+                "fail_reason": "VARCHAR(255) NOT NULL DEFAULT ''",
+            },
+        )
 
-    def _ensure_sqlite_columns(self, *, inspector, table_name: str, columns: dict):
+    def _ensure_columns(self, *, inspector, table_name: str, columns: dict):
         existing_tables = set(inspector.get_table_names())
         if table_name not in existing_tables:
             return

@@ -24,6 +24,14 @@ def load_local_dotenv(path: str = ".env") -> None:
 load_local_dotenv()
 
 
+def env_or_default(name: str, default: str) -> str:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    value = value.strip()
+    return value or default
+
+
 @dataclass
 class Settings:
     app_env: str = "development"
@@ -36,6 +44,7 @@ class Settings:
     wechat_app_secret: str = ""
     wechat_mch_id: str = ""
     wechat_notify_url: str = ""
+    wechat_transfer_notify_url: str = ""
     wechat_private_key_path: str = ""
     wechat_serial_no: str = ""
     wechat_api_v3_key: str = ""
@@ -44,6 +53,13 @@ class Settings:
     wechat_callback_tolerance: int = 300
     wechat_verify_ssl: bool = True
     wechat_ca_bundle_path: str = ""
+    wechat_transfer_scene_id: str = "1005"
+    wechat_transfer_remark: str = "fenxiaoshangtixian"
+    wechat_transfer_user_recv_perception: str = "laowubaochou"
+    wechat_transfer_report_primary: str = "xiaoyuanfenxiao"
+    wechat_transfer_report_secondary: str = "fenxiaoshangtixian"
+    distributor_withdraw_auto_approve_fen: int = 10000
+    unsafe_admin_withdraw_approve: bool = False
     auth_token_ttl_seconds: int = 86400
     dev_auth_bypass: bool = False
     log_mp_report_payloads: bool = False
@@ -75,6 +91,7 @@ class Settings:
             "WECHAT_APP_ID": self.wechat_app_id,
             "WECHAT_MCH_ID": self.wechat_mch_id,
             "WECHAT_NOTIFY_URL": self.wechat_notify_url,
+            "WECHAT_TRANSFER_NOTIFY_URL": self.wechat_transfer_notify_url or self.wechat_notify_url,
             "WECHAT_PRIVATE_KEY_PATH": self.wechat_private_key_path,
             "WECHAT_SERIAL_NO": self.wechat_serial_no,
             "WECHAT_API_V3_KEY": self.wechat_api_v3_key,
@@ -99,6 +116,7 @@ def get_settings() -> Settings:
         wechat_app_secret=os.getenv("WECHAT_APP_SECRET", ""),
         wechat_mch_id=os.getenv("WECHAT_MCH_ID", ""),
         wechat_notify_url=os.getenv("WECHAT_NOTIFY_URL", ""),
+        wechat_transfer_notify_url=os.getenv("WECHAT_TRANSFER_NOTIFY_URL", ""),
         wechat_private_key_path=os.getenv("WECHAT_PRIVATE_KEY_PATH", ""),
         wechat_serial_no=os.getenv("WECHAT_SERIAL_NO", ""),
         wechat_api_v3_key=os.getenv("WECHAT_API_V3_KEY", ""),
@@ -107,6 +125,13 @@ def get_settings() -> Settings:
         wechat_callback_tolerance=int(os.getenv("WECHAT_CALLBACK_TOLERANCE", "300")),
         wechat_verify_ssl=os.getenv("WECHAT_VERIFY_SSL", "true").lower() == "true",
         wechat_ca_bundle_path=os.getenv("WECHAT_CA_BUNDLE_PATH", ""),
+        wechat_transfer_scene_id=env_or_default("WECHAT_TRANSFER_SCENE_ID", "1005"),
+        wechat_transfer_remark=env_or_default("WECHAT_TRANSFER_REMARK", "分销佣金提现"),
+        wechat_transfer_user_recv_perception=env_or_default("WECHAT_TRANSFER_USER_RECV_PERCEPTION", "劳务报酬"),
+        wechat_transfer_report_primary=env_or_default("WECHAT_TRANSFER_REPORT_PRIMARY", "校园分销"),
+        wechat_transfer_report_secondary=env_or_default("WECHAT_TRANSFER_REPORT_SECONDARY", "分销佣金提现"),
+        distributor_withdraw_auto_approve_fen=int(os.getenv("DISTRIBUTOR_WITHDRAW_AUTO_APPROVE_FEN", "10000")),
+        unsafe_admin_withdraw_approve=os.getenv("UNSAFE_ADMIN_WITHDRAW_APPROVE", "false").lower() == "true",
         auth_token_ttl_seconds=int(os.getenv("AUTH_TOKEN_TTL_SECONDS", "86400")),
         dev_auth_bypass=os.getenv("DEV_AUTH_BYPASS", "false").lower() == "true",
         log_mp_report_payloads=os.getenv("LOG_MP_REPORT_PAYLOADS", "false").lower() == "true",

@@ -12,6 +12,8 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.asymmetric import padding
 
+from app.core.errors import ValidationError
+
 
 @dataclass
 class PaymentParams:
@@ -32,6 +34,21 @@ class PaymentNotification:
     paid_at: str
 
 
+@dataclass
+class TransferResult:
+    out_bill_no: str
+    transfer_bill_no: str
+    state: str
+    package_info: str = ""
+
+
+@dataclass
+class BalanceResult:
+    account_type: str
+    available_amount: int
+    pending_amount: int = 0
+
+
 class WechatPayClient:
     def create_prepay(self, *, order_id: str, amount: int, openid: str) -> PaymentParams:
         raise NotImplementedError
@@ -39,9 +56,17 @@ class WechatPayClient:
     def parse_notification(self, payload: dict) -> PaymentNotification:
         raise NotImplementedError
 
+    def transfer_to_balance(self, *, out_bill_no: str, amount: int, openid: str, user_name: str = "") -> TransferResult:
+        raise NotImplementedError
+
+    def query_balance(self, *, account_type: str) -> BalanceResult:
+        raise NotImplementedError
+
 
 class RealWechatPayClient(WechatPayClient):
     PAY_JSAPI_URL = "https://api.mch.weixin.qq.com/v3/pay/transactions/jsapi"
+    TRANSFER_TO_BALANCE_URL = "https://api.mch.weixin.qq.com/v3/fund-app/mch-transfer/transfer-bills"
+    BALANCE_URL_TEMPLATE = "https://api.mch.weixin.qq.com/v3/merchant/fund/balance/{account_type}"
 
     def __init__(self, settings):
         self.settings = settings
@@ -89,6 +114,25 @@ class RealWechatPayClient(WechatPayClient):
             f'serial_no="{self.settings.wechat_serial_no}"'
         )
 
+    def _request_json(self, *, method: str, url: str, url_path: str, body_text: str = "") -> dict:
+        request_method = getattr(requests, method.lower())
+        authorization = self._build_authorization(method, url_path, body_text)
+        response = request_method(
+            url,
+            data=body_text.encode("utf-8") if body_text else None,
+            timeout=15,
+            headers={
+                "Authorization": authorization,
+                "Accept": "application/json",
+                "Content-Type": "application/json; charset=utf-8",
+            },
+        )
+        try:
+            response.raise_for_status()
+        except requests.HTTPError as exc:
+            raise ValidationError(message=self._build_transfer_error_message(response)) from exc
+        return response.json()
+
     def _build_pay_sign(self, prepay_id: str) -> dict[str, str]:
         timestamp = self._timestamp()
         nonce_str = self._nonce()
@@ -131,25 +175,12 @@ class RealWechatPayClient(WechatPayClient):
             bool(openid),
             self.settings.wechat_notify_url,
         )
-        authorization = self._build_authorization("POST", "/v3/pay/transactions/jsapi", body_text)
-        response = requests.post(
-            self.PAY_JSAPI_URL,
-            data=body_text.encode("utf-8"),
-            timeout=15,
-            headers={
-                "Authorization": authorization,
-                "Accept": "application/json",
-                "Content-Type": "application/json; charset=utf-8",
-            },
+        data = self._request_json(
+            method="POST",
+            url=self.PAY_JSAPI_URL,
+            url_path="/v3/pay/transactions/jsapi",
+            body_text=body_text,
         )
-        logger.info(
-            "wechat.pay.jsapi.response order_id=%s status_code=%s body=%s",
-            order_id,
-            response.status_code,
-            response.text[:1000],
-        )
-        response.raise_for_status()
-        data = response.json()
         prepay_id = data["prepay_id"]
         payment_params = self._build_pay_sign(prepay_id)
         logger.info(
@@ -167,6 +198,96 @@ class RealWechatPayClient(WechatPayClient):
             paySign=payment_params["paySign"],
             prepay_id=prepay_id,
         )
+
+    def transfer_to_balance(self, *, out_bill_no: str, amount: int, openid: str, user_name: str = "") -> TransferResult:
+        logger = logging.getLogger(__name__)
+        transfer_scene_id = (self.settings.wechat_transfer_scene_id or "").strip() or "1005"
+        transfer_remark = (self.settings.wechat_transfer_remark or "").strip() or "分销佣金提现"
+        user_recv_perception = (self.settings.wechat_transfer_user_recv_perception or "").strip() or "劳务报酬"
+        payload = {
+            "appid": self.settings.wechat_app_id,
+            "out_bill_no": out_bill_no,
+            "transfer_scene_id": transfer_scene_id,
+            "openid": openid,
+            "transfer_amount": int(amount),
+            "transfer_remark": transfer_remark,
+            "user_recv_perception": user_recv_perception,
+        }
+        if self.settings.wechat_transfer_notify_url or self.settings.wechat_notify_url:
+            payload["notify_url"] = self.settings.wechat_transfer_notify_url or self.settings.wechat_notify_url
+        report_infos = self._build_transfer_scene_report_infos()
+        if report_infos:
+            payload["transfer_scene_report_infos"] = report_infos
+        body_text = json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
+        logger.info(
+            "wechat.transfer.request out_bill_no=%s endpoint=%s mchid=%s appid=%s amount=%s has_openid=%s scene_id=%s",
+            out_bill_no,
+            self.TRANSFER_TO_BALANCE_URL,
+            self.settings.wechat_mch_id,
+            self.settings.wechat_app_id,
+            payload["transfer_amount"],
+            bool(openid),
+            transfer_scene_id,
+        )
+        data = self._request_json(
+            method="POST",
+            url=self.TRANSFER_TO_BALANCE_URL,
+            url_path="/v3/fund-app/mch-transfer/transfer-bills",
+            body_text=body_text,
+        )
+        return TransferResult(
+            out_bill_no=data.get("out_bill_no") or out_bill_no,
+            transfer_bill_no=data.get("transfer_bill_no") or "",
+            state=(data.get("state") or "ACCEPTED").upper(),
+            package_info=data.get("package_info") or "",
+        )
+
+    def query_balance(self, *, account_type: str) -> BalanceResult:
+        logger = logging.getLogger(__name__)
+        normalized = (account_type or "").strip().upper() or "OPERATION"
+        if normalized not in {"BASIC", "OPERATION", "FEES"}:
+            raise ValidationError(message="unsupported balance account_type")
+        url_path = "/v3/merchant/fund/balance/{}".format(normalized)
+        url = self.BALANCE_URL_TEMPLATE.format(account_type=normalized)
+        logger.info("wechat.balance.request account_type=%s endpoint=%s mchid=%s", normalized, url, self.settings.wechat_mch_id)
+        data = self._request_json(method="GET", url=url, url_path=url_path)
+        logger.info("wechat.balance.response account_type=%s data=%s", normalized, json.dumps(data, ensure_ascii=False)[:1000])
+        return BalanceResult(
+            account_type=normalized,
+            available_amount=int(data.get("available_amount") or 0),
+            pending_amount=int(data.get("pending_amount") or 0),
+        )
+
+    def _build_transfer_scene_report_infos(self) -> list[dict[str, str]]:
+        primary = (self.settings.wechat_transfer_report_primary or "").strip()
+        secondary = (self.settings.wechat_transfer_report_secondary or "").strip()
+        scene_id = (self.settings.wechat_transfer_scene_id or "").strip() or "1005"
+        if scene_id == "1005":
+            return [
+                {"info_type": "岗位类型", "info_content": primary or "校园分销"},
+                {"info_type": "报酬说明", "info_content": secondary or "分销佣金提现"},
+            ]
+        if scene_id == "1000":
+            return [
+                {"info_type": "活动名称", "info_content": primary or "分销激励"},
+                {"info_type": "奖励说明", "info_content": secondary or "分销佣金提现"},
+            ]
+        return []
+
+    def _build_transfer_error_message(self, response) -> str:
+        try:
+            payload = response.json()
+        except Exception:
+            payload = {}
+        code = str(payload.get("code") or "").strip()
+        message = str(payload.get("message") or "").strip()
+        if code or message:
+            detail = " ".join(part for part in [code, message] if part).strip()
+            return "wechat transfer failed: {}".format(detail)
+        body = (response.text or "").strip()
+        if body:
+            return "wechat transfer failed: {}".format(body[:300])
+        return "wechat transfer failed: http {}".format(response.status_code)
 
     def verify_callback_signature(self, headers: dict, body_text: str) -> None:
         if not self.platform_public_key:
@@ -274,4 +395,20 @@ class NullWechatPayClient(WechatPayClient):
             amount=payload["amount"],
             status=payload.get("status", "success"),
             paid_at=payload.get("paid_at", datetime.utcnow().isoformat() + "Z"),
+        )
+
+    def transfer_to_balance(self, *, out_bill_no: str, amount: int, openid: str, user_name: str = "") -> TransferResult:
+        return TransferResult(
+            out_bill_no=out_bill_no,
+            transfer_bill_no="mock-transfer-{}".format(out_bill_no),
+            state="SUCCESS",
+            package_info="mock",
+        )
+
+    def query_balance(self, *, account_type: str) -> BalanceResult:
+        normalized = (account_type or "").strip().upper() or "OPERATION"
+        return BalanceResult(
+            account_type=normalized,
+            available_amount=0,
+            pending_amount=0,
         )

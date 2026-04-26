@@ -18,6 +18,14 @@ class UserRepository:
     def get_by_id(self, user_id: int) -> Optional[User]:
         return self.db.execute(select(User).where(User.id == user_id)).scalar_one_or_none()
 
+    def list_users(self, *, page: int, page_size: int, exclude_user_id: Optional[int] = None):
+        stmt = select(User)
+        if exclude_user_id is not None:
+            stmt = stmt.where(User.id != exclude_user_id)
+        return self.db.execute(
+            stmt.order_by(User.created_at.desc(), User.id.desc()).offset((page - 1) * page_size).limit(page_size)
+        ).scalars().all()
+
     def create_user(self, *, openid: str, unionid: str = "") -> User:
         user = User(openid=openid, unionid=unionid)
         self.db.add(user)
@@ -58,4 +66,3 @@ class UserRepository:
             user.avatar_url = avatar_url
         self.db.flush()
         return user
-

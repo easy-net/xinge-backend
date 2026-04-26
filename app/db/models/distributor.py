@@ -64,6 +64,8 @@ class DistributorWithdrawal(Base):
     account_name: Mapped[str] = mapped_column(String(128), nullable=False)
     bank_name: Mapped[str] = mapped_column(String(128), nullable=False)
     bank_account_masked: Mapped[str] = mapped_column(String(32), nullable=False)
+    transfer_bill_no: Mapped[str] = mapped_column(String(64), default="", index=True, nullable=False)
+    fail_reason: Mapped[str] = mapped_column(String(255), default="", nullable=False)
     status: Mapped[str] = mapped_column(String(32), default="pending", nullable=False)
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
@@ -75,3 +77,18 @@ class DistributorWithdrawal(Base):
     )
 
     user = relationship("User", back_populates="distributor_withdrawals")
+
+
+class DistributorQuotaRecord(Base):
+    __tablename__ = "distributor_quota_records"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("mp_users.id"), index=True, nullable=False)
+    direction: Mapped[str] = mapped_column(String(16), nullable=False)
+    counterparty_user_id: Mapped[Optional[int]] = mapped_column(Integer, index=True, nullable=True)
+    counterparty_level: Mapped[str] = mapped_column(String(32), default="", nullable=False)
+    amount: Mapped[int] = mapped_column(Integer, nullable=False)
+    quota_before: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    quota_after: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    remark: Mapped[str] = mapped_column(String(255), default="", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)

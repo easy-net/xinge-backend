@@ -2,6 +2,7 @@ from app.core.auth_tokens import issue_access_token
 from app.core.config import get_settings
 from app.core.errors import ValidationError
 from app.core.security import encrypt_text, mask_phone
+from app.repositories.distributor_repository import DistributorRepository
 from app.repositories.message_repository import MessageRepository
 from app.repositories.report_repository import ReportRepository
 from app.repositories.user_repository import UserRepository
@@ -13,6 +14,7 @@ class AuthService:
         self.wechat_auth_client = wechat_auth_client
         self.settings = settings or get_settings()
         self.user_repository = UserRepository(db)
+        self.distributor_repository = DistributorRepository(db)
         self.report_repository = ReportRepository(db)
         self.message_repository = MessageRepository(db)
 
@@ -44,7 +46,7 @@ class AuthService:
             "expires_in": self.settings.auth_token_ttl_seconds,
             "has_phone": bool(user.phone_masked),
             "is_new_user": is_new_user,
-            "role": "distributor" if user.is_distributor else "user",
+            "role": user.role or ("distributor" if user.is_distributor else "user"),
             "token_type": "Bearer",
             "user_info": {
                 "open_id": user.openid,
@@ -67,6 +69,7 @@ class AuthService:
         return {"phone_masked": phone_masked}, {"open_id": user.openid, "user_id": user.id}
 
     def me(self, user, request_context):
+        distributor_profile = self.distributor_repository.get_profile_for_user(user_id=user.id)
         self.user_repository.update_device(
             user=user,
             device_uuid=request_context.device_uuid,
@@ -76,14 +79,14 @@ class AuthService:
         data = {
             "avatar_url": user.avatar_url,
             "created_at": user.created_at.isoformat() + "Z",
-            "distributor_level": None,
+            "distributor_level": getattr(distributor_profile, "distributor_level", None),
             "has_phone": bool(user.phone_masked),
             "is_distributor": user.is_distributor,
             "nickname": user.nickname,
-            "parent_distributor_id": None,
+            "parent_distributor_id": getattr(distributor_profile, "parent_distributor_id", None),
             "phone_masked": user.phone_masked or None,
             "report_count": self.report_repository.count_for_user(user.id),
-            "role": "distributor" if user.is_distributor else "user",
+            "role": user.role or ("distributor" if user.is_distributor else "user"),
             "unread_message_count": self.message_repository.count_unread_for_user(user.id),
             "user_id": user.id,
         }
