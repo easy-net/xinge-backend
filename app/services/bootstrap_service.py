@@ -1,3 +1,4 @@
+import app.db.models  # noqa: F401
 from app.db.base import Base
 from app.db.models.product_config import ProductConfig
 from app.db.models.school import College, Major, School

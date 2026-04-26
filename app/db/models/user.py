@@ -27,4 +27,6 @@ class User(Base):
     )
 
     devices = relationship("UserDevice", back_populates="user", cascade="all, delete-orphan")
-
+    distributor_profile = relationship("DistributorProfile", back_populates="user", uselist=False)
+    distributor_applications = relationship("DistributorApplication", back_populates="user", cascade="all, delete-orphan")
+    distributor_withdrawals = relationship("DistributorWithdrawal", back_populates="user", cascade="all, delete-orphan")

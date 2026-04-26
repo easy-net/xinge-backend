@@ -11,6 +11,7 @@ COPY pyproject.toml setup.py README.md /app/
 COPY app /app/app
 COPY certs /app/certs
 COPY .env /app/.env
+COPY scripts /app/scripts
 COPY static /app/static
 COPY migrations /app/migrations
 COPY alembic.ini /app/alembic.ini
@@ -24,4 +25,4 @@ RUN apt-get update \
 
 EXPOSE 80
 
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-80}"]
+CMD ["sh", "/app/scripts/run_api.sh"]

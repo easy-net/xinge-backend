@@ -24,6 +24,19 @@ class ReportRepository:
         stmt = select(func.count(Report.id)).where(Report.user_id == user_id)
         return self.db.execute(stmt).scalar_one()
 
+    def stats_for_user(self, user_id: int) -> dict:
+        total = self.count_for_user(user_id)
+        paid_stmt = select(func.count(Report.id)).where(
+            Report.user_id == user_id,
+            Report.status.in_(("paid", "collecting", "planning", "generating", "analyzing", "completed")),
+        )
+        paid_count = self.db.execute(paid_stmt).scalar_one()
+        return {
+            "paid_count": paid_count,
+            "total_count": total,
+            "unpaid_count": max(total - paid_count, 0),
+        }
+
     def list_for_user(self, *, user_id: int, page: int, page_size: int):
         total_stmt = select(func.count(Report.id)).where(Report.user_id == user_id)
         total = self.db.execute(total_stmt).scalar_one()
