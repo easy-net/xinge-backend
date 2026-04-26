@@ -62,6 +62,7 @@ class RealWechatAuthClient(WechatAuthClient):
             response = request(url, timeout=10, **kwargs)
             response.raise_for_status()
         except Exception as exc:
+            logger.exception("wechat request failed url=%s method=%s", url, method)
             raise AuthError(message="wechat service is unavailable") from exc
         payload = response.json()
         if not isinstance(payload, dict):
