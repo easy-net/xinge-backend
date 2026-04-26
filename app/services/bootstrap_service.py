@@ -1,4 +1,6 @@
 import app.db.models  # noqa: F401
+from sqlalchemy import inspect
+
 from app.db.base import Base
 from app.db.models.product_config import ProductConfig
 from app.db.models.school import College, Major, School
@@ -315,6 +317,7 @@ class BootstrapService:
 
     def run(self):
         Base.metadata.create_all(self.engine)
+        self._patch_legacy_schema()
         session = self.session_factory()
         try:
             repository = ProductConfigRepository(session)
@@ -340,6 +343,32 @@ class BootstrapService:
                 session.commit()
         finally:
             session.close()
+
+    def _patch_legacy_schema(self):
+        if self.engine.dialect.name != "sqlite":
+            return
+        inspector = inspect(self.engine)
+        self._ensure_sqlite_columns(
+            inspector=inspector,
+            table_name="distributor_applications",
+            columns={
+                "real_name": "VARCHAR(128) NOT NULL DEFAULT ''",
+                "phone": "VARCHAR(32) NOT NULL DEFAULT ''",
+                "reason": "VARCHAR(255) NOT NULL DEFAULT ''",
+            },
+        )
+
+    def _ensure_sqlite_columns(self, *, inspector, table_name: str, columns: dict):
+        existing_tables = set(inspector.get_table_names())
+        if table_name not in existing_tables:
+            return
+        existing_columns = {column["name"] for column in inspector.get_columns(table_name)}
+        missing_columns = {name: ddl for name, ddl in columns.items() if name not in existing_columns}
+        if not missing_columns:
+            return
+        with self.engine.begin() as connection:
+            for column_name, ddl in missing_columns.items():
+                connection.exec_driver_sql("ALTER TABLE {} ADD COLUMN {} {}".format(table_name, column_name, ddl))
 
     def _seed_schools(self, session):
         for school_item in SCHOOL_FIXTURES:

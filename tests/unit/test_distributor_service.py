@@ -70,6 +70,9 @@ def test_distributor_service_application_status_returns_latest_record(db_session
         DistributorApplication(
             application_id="unit-app-1",
             user_id=user.id,
+            real_name="张三",
+            phone="13800138000",
+            reason="缺少资料",
             status="rejected",
             target_level="campus",
             reject_reason="缺少资料",
@@ -82,3 +85,22 @@ def test_distributor_service_application_status_returns_latest_record(db_session
     assert data["application_id"] == "unit-app-1"
     assert data["status"] == "rejected"
     assert data["reject_reason"] == "缺少资料"
+
+
+def test_distributor_service_apply_returns_created_payload(db_session):
+    user = User(openid="apply-openid", unionid="apply-unionid", is_distributor=False)
+    db_session.add(user)
+    db_session.commit()
+
+    data = DistributorService(db_session).apply(
+        user=user,
+        payload={
+            "phone": "13800138000",
+            "real_name": "张三",
+            "reason": "希望代理校园市场",
+            "target_level": "campus",
+        },
+    )
+
+    assert data["application_id"].startswith("app_")
+    assert data["status"] == "pending"

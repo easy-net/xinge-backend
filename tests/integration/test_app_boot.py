@@ -16,6 +16,12 @@ def test_static_report_preview_page_is_accessible(client):
     assert "报告预览" in response.text
 
 
+def test_static_admin_distributor_page_is_accessible(client):
+    response = client.get("/static/admin-distributor.html")
+    assert response.status_code == 200
+    assert "分销申请审批台" in response.text
+
+
 def test_app_startup_logs_environment(caplog, tmp_path):
     settings = Settings(
         app_env="development",

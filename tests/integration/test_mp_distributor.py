@@ -90,6 +90,63 @@ def test_mp_distributor_me_returns_profile_and_stats(client, db_session):
     assert data["downline_total"] == 2
 
 
+def test_mp_distributor_apply_creates_pending_application(client, db_session):
+    login_response = client.post("/api/v1/mp/auth/login", headers=auth_headers(), json={})
+    user_id = login_response.json()["user_info"]["user_id"]
+
+    response = client.post(
+        "/api/v1/mp/distributor/apply",
+        headers=auth_headers(),
+        json={
+            "phone": "13800138000",
+            "real_name": "张三",
+            "reason": "希望代理校园市场",
+            "target_level": "campus",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["application_id"].startswith("app_")
+    assert data["status"] == "pending"
+    application = db_session.execute(select(DistributorApplication).where(DistributorApplication.user_id == user_id)).scalar_one()
+    assert application.real_name == "张三"
+    assert application.phone == "13800138000"
+    assert application.reason == "希望代理校园市场"
+    assert application.target_level == "campus"
+
+
+def test_mp_distributor_apply_rejects_duplicate_pending_application(client, db_session):
+    login_response = client.post("/api/v1/mp/auth/login", headers=auth_headers(), json={})
+    user_id = login_response.json()["user_info"]["user_id"]
+    db_session.add(
+        DistributorApplication(
+            application_id="app_pending_1",
+            user_id=user_id,
+            real_name="张三",
+            phone="13800138000",
+            reason="第一次申请",
+            status="pending",
+            target_level="campus",
+        )
+    )
+    db_session.commit()
+
+    response = client.post(
+        "/api/v1/mp/distributor/apply",
+        headers=auth_headers(),
+        json={
+            "phone": "13800138000",
+            "real_name": "张三",
+            "reason": "再次申请",
+            "target_level": "campus",
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json()["message"] == "application is pending"
+
+
 def test_mp_distributor_application_status_returns_latest_application(client, db_session):
     user_id = seed_distributor_user(client, db_session)
     now = datetime.utcnow()
@@ -97,6 +154,9 @@ def test_mp_distributor_application_status_returns_latest_application(client, db
         DistributorApplication(
             application_id="app_older",
             user_id=user_id,
+            real_name="张三",
+            phone="13800138000",
+            reason="资料不完整",
             status="rejected",
             target_level="campus",
             reject_reason="资料不完整",
@@ -108,6 +168,9 @@ def test_mp_distributor_application_status_returns_latest_application(client, db
         DistributorApplication(
             application_id="app_latest",
             user_id=user_id,
+            real_name="张三",
+            phone="13800138000",
+            reason="希望升级城市代理",
             status="pending",
             target_level="city",
             created_at=now,

@@ -2,11 +2,22 @@ from fastapi import APIRouter, Body, Depends
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db_session
-from app.api.schemas.mp_distributor import MPPageReq
+from app.api.schemas.mp_distributor import MPDistributorApplyReq, MPPageReq
 from app.core.response import mp_response
 from app.services.distributor_service import DistributorService
 
 router = APIRouter(tags=["mp/distributor"])
+
+
+@router.post("/mp/distributor/apply")
+def distributor_apply(
+    body: MPDistributorApplyReq,
+    current=Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    user, _ = current
+    data = DistributorService(db).apply(user=user, payload=body.model_dump())
+    return mp_response(data=data, user_info={"open_id": user.openid, "user_id": user.id})
 
 
 @router.post("/mp/distributor/me")
