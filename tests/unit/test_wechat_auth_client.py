@@ -109,3 +109,19 @@ def test_real_client_code_to_session_surfaces_wechat_error():
 
     with pytest.raises(AuthError, match="invalid code"):
         client.code_to_session("bad-login-code")
+
+
+def test_real_client_passes_verify_to_http_client():
+    http_client = FakeHttpClient()
+    http_client.session_payloads = [{"openid": "openid-user-1", "unionid": "unionid-user-1"}]
+    client = RealWechatAuthClient(
+        app_id="wx-app-id",
+        app_secret="wx-app-secret",
+        http_client=http_client,
+        verify="/app/certs/custom-ca.pem",
+    )
+
+    session = client.code_to_session("login-code-1")
+
+    assert session.openid == "openid-user-1"
+    assert http_client.get_calls[0][1]["verify"] == "/app/certs/custom-ca.pem"

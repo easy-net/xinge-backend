@@ -27,6 +27,7 @@ def create_app(settings: Settings = None) -> FastAPI:
         app.state.wechat_auth_client = RealWechatAuthClient(
             app_id=settings.wechat_app_id,
             app_secret=settings.wechat_app_secret,
+            verify=settings.wechat_ca_bundle_path or settings.wechat_verify_ssl,
         )
     else:
         app.state.wechat_auth_client = NullWechatAuthClient()

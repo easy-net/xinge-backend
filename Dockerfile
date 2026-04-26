@@ -15,7 +15,12 @@ COPY static /app/static
 COPY migrations /app/migrations
 COPY alembic.ini /app/alembic.ini
 
-RUN pip install --upgrade pip && pip install .
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && update-ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --upgrade pip \
+    && pip install .
 
 EXPOSE 80
 

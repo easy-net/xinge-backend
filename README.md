@@ -87,6 +87,17 @@ The issued access token lifetime defaults to 24 hours and can be changed with `A
 
 For backward compatibility, the older `X-Login-Code`-based private API flow still works, but it will continue to consume a fresh WeChat code on every request.
 
+## WeChat SSL Troubleshooting
+
+If `jscode2session` fails with `SSLCertVerificationError` or `self-signed certificate`, check the startup environment logs for proxy-related variables such as `HTTPS_PROXY`, `HTTP_PROXY`, `ALL_PROXY`, `REQUESTS_CA_BUNDLE`, and `SSL_CERT_FILE`.
+
+This project now supports:
+
+- `WECHAT_VERIFY_SSL=true|false`
+- `WECHAT_CA_BUNDLE_PATH=/path/to/custom-ca.pem`
+
+Use `WECHAT_CA_BUNDLE_PATH` when your cloud environment uses a custom outbound proxy certificate. Avoid setting `WECHAT_VERIFY_SSL=false` except as a temporary diagnostic step.
+
 ## Real WeChat Pay Setup
 
 If you already have a verified payment setup under `payment-backend`, you can reuse its certificate files directly.

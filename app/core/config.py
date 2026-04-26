@@ -42,6 +42,8 @@ class Settings:
     wechat_platform_cert_path: str = ""
     wechat_platform_serial_no: str = ""
     wechat_callback_tolerance: int = 300
+    wechat_verify_ssl: bool = True
+    wechat_ca_bundle_path: str = ""
     auth_token_ttl_seconds: int = 86400
     dev_auth_bypass: bool = False
     log_mp_report_payloads: bool = False
@@ -103,6 +105,8 @@ def get_settings() -> Settings:
         wechat_platform_cert_path=os.getenv("WECHAT_PLATFORM_CERT_PATH", ""),
         wechat_platform_serial_no=os.getenv("WECHAT_PLATFORM_SERIAL_NO", ""),
         wechat_callback_tolerance=int(os.getenv("WECHAT_CALLBACK_TOLERANCE", "300")),
+        wechat_verify_ssl=os.getenv("WECHAT_VERIFY_SSL", "true").lower() == "true",
+        wechat_ca_bundle_path=os.getenv("WECHAT_CA_BUNDLE_PATH", ""),
         auth_token_ttl_seconds=int(os.getenv("AUTH_TOKEN_TTL_SECONDS", "86400")),
         dev_auth_bypass=os.getenv("DEV_AUTH_BYPASS", "false").lower() == "true",
         log_mp_report_payloads=os.getenv("LOG_MP_REPORT_PAYLOADS", "false").lower() == "true",

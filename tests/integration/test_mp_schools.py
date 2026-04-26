@@ -2,6 +2,9 @@ from app.db.models.school import College, Major, School
 
 
 def seed_school(db_session):
+    existing = db_session.query(School).filter(School.name == "北京大学").one_or_none()
+    if existing is not None:
+        return
     school = School(
         name="北京大学",
         city="北京",
@@ -40,4 +43,3 @@ def test_mp_schools_detail_returns_nested_colleges_and_majors(client, db_session
     data = response.json()["data"]
     assert data["name"] == "北京大学"
     assert data["colleges"][0]["majors"][0]["name"] == "计算机科学与技术"
-

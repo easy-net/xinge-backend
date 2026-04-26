@@ -40,11 +40,12 @@ class DevBypassWechatAuthClient(WechatAuthClient):
 
 
 class RealWechatAuthClient(WechatAuthClient):
-    def __init__(self, app_id: str, app_secret: str, http_client=None, now_fn=None):
+    def __init__(self, app_id: str, app_secret: str, http_client=None, now_fn=None, verify=True):
         self.app_id = app_id
         self.app_secret = app_secret
         self.http_client = http_client or self._load_http_client()
         self.now_fn = now_fn or time.time
+        self.verify = verify
         self._access_token = ""
         self._access_token_expires_at = 0.0
 
@@ -59,10 +60,10 @@ class RealWechatAuthClient(WechatAuthClient):
     def _request_json(self, method: str, url: str, **kwargs) -> dict:
         request = getattr(self.http_client, method.lower())
         try:
-            response = request(url, timeout=10, **kwargs)
+            response = request(url, timeout=10, verify=self.verify, **kwargs)
             response.raise_for_status()
         except Exception as exc:
-            logger.exception("wechat request failed url=%s method=%s", url, method)
+            logger.exception("wechat request failed url=%s method=%s verify=%s", url, method, self.verify)
             raise AuthError(message="wechat service is unavailable") from exc
         payload = response.json()
         if not isinstance(payload, dict):
