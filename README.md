@@ -83,7 +83,7 @@ docker build -t xinge-backend .
 Run with the same variables as local `.env`:
 
 ```bash
-docker run --rm -p 8000:8000 --env-file .env xinge-backend
+docker run --rm -p 80:80 --env-file .env xinge-backend
 ```
 
 If the container must reach WeChat through a proxy or custom CA bundle, keep these fields in `.env` aligned with the host environment:
@@ -98,6 +98,8 @@ WECHAT_CA_BUNDLE_PATH=
 ```
 
 The image already includes the system CA bundle at `/etc/ssl/certs/ca-certificates.crt`, and `requests` inside the container uses it by default through `SSL_CERT_FILE` and `REQUESTS_CA_BUNDLE`.
+
+For WeChat Cloud Hosting, keep `container.config.json` env keys aligned with `.env.example`, and set the real values in the hosting console. The service listens on `PORT=80` by default, which matches the current cloud hosting config.
 
 ## Production Config
 

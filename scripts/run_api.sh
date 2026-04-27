@@ -11,8 +11,14 @@ set -eu
 #export LOG_MP_REPORT_PAYLOADS=true
 #export LOG_MP_REQUESTS=true
 
-# source .env
-PORT="${PORT:-8000}"
+# shellcheck disable=SC1091
+if [ -f ".env" ]; then
+  set -a
+  . ".env"
+  set +a
+fi
+
+PORT="${PORT:-80}"
 HOST="${HOST:-0.0.0.0}"
 SSL_CERTFILE="${SSL_CERTFILE:-}"
 SSL_KEYFILE="${SSL_KEYFILE:-}"
