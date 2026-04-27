@@ -32,12 +32,12 @@
     .hero h1 { margin: 0; font-size: 32px; font-weight: 700; }
     .hero p { margin: 10px 0 0; color: var(--muted); font-size: 14px; }
     .hero-meta { padding: 14px 18px; border-radius: 16px; background: var(--card); box-shadow: var(--shadow); color: var(--muted); font-size: 13px; }
-    .layout { display: grid; grid-template-columns: 380px 1fr; gap: 18px; }
+    .layout { display: grid; grid-template-columns: 340px minmax(360px, 1fr) minmax(360px, 1fr); gap: 18px; }
     .panel { border-radius: 24px; background: var(--card); box-shadow: var(--shadow); overflow: hidden; }
     .panel-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 18px 18px 12px; border-bottom: 1px solid var(--line); }
     .panel-head h2 { margin: 0; font-size: 18px; }
     .panel-body { padding: 18px; }
-    .toolbar, .inline-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .toolbar, .inline-toolbar, .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
     .toolbar { margin-bottom: 14px; }
     select, input, button {
       border: 1px solid var(--line); border-radius: 12px; height: 42px; padding: 0 14px; font-size: 14px; background: #fff;
@@ -55,6 +55,7 @@
     .card-title { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 10px; }
     .card-title strong { font-size: 16px; }
     .pill { display: inline-flex; align-items: center; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--primary); background: rgba(23,104,255,0.12); }
+    .pill-muted { color: #475467; background: rgba(71,84,103,0.12); }
     .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
     .stat { padding: 16px; border-radius: 18px; background: rgba(255,255,255,0.95); border: 1px solid var(--line); }
     .stat-label { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
@@ -141,6 +142,26 @@
           </div>
         </div>
       </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>直属下级列表</h2>
+          <div class="inline-toolbar">
+            <select id="downlineLevelFilter">
+              <option value="">全部下级</option>
+              <option value="city">city</option>
+              <option value="campus">campus</option>
+            </select>
+            <button class="btn-primary" id="refreshDownlinesButton">刷新下级</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="hint">这里显示当前上级的直属下级，支持直接解除挂接关系。</div>
+          <div class="list" id="downlineList">
+            <div class="empty">请先选择上级分销商</div>
+          </div>
+        </div>
+      </section>
     </div>
   </div>
 
@@ -150,7 +171,9 @@
     const state = {
       parents: [],
       candidates: [],
+      downlines: [],
       parentLevel: "",
+      downlineLevel: "",
       keyword: "",
       selectedParent: null,
       selectedCandidate: null,
@@ -158,8 +181,10 @@
 
     const parentList = document.getElementById("parentList");
     const candidateList = document.getElementById("candidateList");
+    const downlineList = document.getElementById("downlineList");
     const heroMeta = document.getElementById("heroMeta");
     const parentLevelFilter = document.getElementById("parentLevelFilter");
+    const downlineLevelFilter = document.getElementById("downlineLevelFilter");
     const keywordInput = document.getElementById("keywordInput");
     const targetLevelSelect = document.getElementById("targetLevelSelect");
     const selectedParentName = document.getElementById("selectedParentName");
@@ -249,6 +274,33 @@
       `).join("");
     }
 
+    function renderDownlines() {
+      if (!state.selectedParent) {
+        downlineList.innerHTML = '<div class="empty">请先选择上级分销商</div>';
+        return;
+      }
+      if (!state.downlines.length) {
+        downlineList.innerHTML = '<div class="empty">当前上级没有符合筛选条件的直属下级</div>';
+        return;
+      }
+      downlineList.innerHTML = state.downlines.map(user => `
+        <div class="card" data-downline-id="${user.user_id}">
+          <div class="card-title">
+            <div>
+              <strong>${user.nickname || "未命名下级"}</strong>
+              <div class="small">UID: ${user.user_id}</div>
+            </div>
+            <span class="pill pill-muted">${user.distributor_level}</span>
+          </div>
+          <div class="meta">配额总量 ${user.quota_total} / 已分配 ${user.quota_used} / 剩余 ${user.quota_remaining}</div>
+          <div class="meta">加入时间: ${user.joined_at || "-"}</div>
+          <div class="actions">
+            <button class="btn-danger" data-unassign-id="${user.user_id}">解除关系</button>
+          </div>
+        </div>
+      `).join("");
+    }
+
     function refreshSummary() {
       selectedParentName.textContent = state.selectedParent ? (state.selectedParent.nickname || String(state.selectedParent.user_id)) : "-";
       selectedCandidateName.textContent = state.selectedCandidate ? (state.selectedCandidate.nickname || String(state.selectedCandidate.user_id)) : "-";
@@ -288,6 +340,19 @@
       refreshSummary();
     }
 
+    async function loadDownlines() {
+      if (!state.selectedParent) {
+        state.downlines = [];
+        renderDownlines();
+        return;
+      }
+      const params = new URLSearchParams({ page: "1", page_size: "200" });
+      if (state.downlineLevel) params.set("level", state.downlineLevel);
+      const payload = await requestJson(`/api/v1/admin/distributor/users/${state.selectedParent.user_id}/downlines?${params.toString()}`);
+      state.downlines = payload.data.list;
+      renderDownlines();
+    }
+
     async function assignDownline() {
       if (!state.selectedParent) throw new Error("请先选择上级分销商");
       if (!state.selectedCandidate) throw new Error("请先选择候选用户");
@@ -303,6 +368,7 @@
       showToast(`分配成功：UID ${payload.data.downline_user_id} 已挂接到 UID ${payload.data.parent_distributor_id}`);
       await loadParents();
       await loadCandidates();
+      await loadDownlines();
     }
 
     async function unassignDownline() {
@@ -321,6 +387,7 @@
       showToast(`解除成功：UID ${payload.data.downline_user_id} 已从 UID ${state.selectedParent.user_id} 下解绑`);
       await loadParents();
       await loadCandidates();
+      await loadDownlines();
     }
 
     parentList.addEventListener("click", async (event) => {
@@ -332,6 +399,7 @@
       renderParents();
       syncLevelOptions();
       await loadCandidates();
+      await loadDownlines();
       refreshSummary();
     });
 
@@ -345,12 +413,37 @@
       renderCandidates();
     });
 
+    downlineList.addEventListener("click", async (event) => {
+      const button = event.target.closest("[data-unassign-id]");
+      if (!button) return;
+      const userId = Number(button.dataset.unassignId);
+      state.selectedCandidate = state.candidates.find(item => item.user_id === userId) || state.downlines.find(item => item.user_id === userId) || null;
+      refreshSummary();
+      try {
+        await requestJson(`/api/v1/admin/distributor/users/${state.selectedParent.user_id}/downlines/unassign`, {
+          method: "POST",
+          body: JSON.stringify({ downline_user_id: userId }),
+        });
+        showToast(`解除成功：UID ${userId} 已解绑`);
+        await loadCandidates();
+        await loadDownlines();
+      } catch (error) {
+        showToast(error.message || "解除失败", true);
+      }
+    });
+
     parentLevelFilter.addEventListener("change", async () => {
       state.parentLevel = parentLevelFilter.value;
       state.selectedParent = null;
       state.selectedCandidate = null;
       await loadParents();
       await loadCandidates();
+      await loadDownlines();
+    });
+
+    downlineLevelFilter.addEventListener("change", async () => {
+      state.downlineLevel = downlineLevelFilter.value;
+      await loadDownlines();
     });
 
     keywordInput.addEventListener("keydown", async (event) => {
@@ -365,6 +458,7 @@
       state.keyword = keywordInput.value.trim();
       await loadCandidates();
     });
+    document.getElementById("refreshDownlinesButton").addEventListener("click", loadDownlines);
     document.getElementById("assignButton").addEventListener("click", async () => {
       try {
         await assignDownline();
@@ -380,7 +474,7 @@
       }
     });
 
-    Promise.all([loadParents(), loadCandidates()]).catch((error) => {
+    Promise.all([loadParents(), loadCandidates(), loadDownlines()]).catch((error) => {
       heroMeta.textContent = "页面初始化失败";
       showToast(error.message || "加载失败", true);
     });

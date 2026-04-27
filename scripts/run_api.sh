@@ -18,7 +18,7 @@ if [ -f ".env" ]; then
   set +a
 fi
 
-PORT="${PORT:-8000}"
+PORT="${PORT:-80}"
 HOST="${HOST:-0.0.0.0}"
 SSL_CERTFILE="${SSL_CERTFILE:-}"
 SSL_KEYFILE="${SSL_KEYFILE:-}"
@@ -35,5 +35,5 @@ if [ -n "$SSL_CERTFILE" ] || [ -n "$SSL_KEYFILE" ]; then
     --ssl-certfile "$SSL_CERTFILE" \
     --ssl-keyfile "$SSL_KEYFILE"
 else
-  uvicorn app.main:app --host "$HOST" --port 8000 #"$PORT"
+  uvicorn app.main:app --host "$HOST" --port "$PORT"
 fi
