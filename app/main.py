@@ -1,20 +1,24 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from app.api.middleware import register_exception_handlers, register_middleware
-from app.api.routes import register_routers
 from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging, log_startup_environment
-from app.db.session import create_engine_and_session_factory
-from app.integrations.wechat_auth import DevBypassWechatAuthClient, NullWechatAuthClient, RealWechatAuthClient
-from app.integrations.wechat_pay import NullWechatPayClient, RealWechatPayClient
-from app.services.bootstrap_service import BootstrapService
-
 
 def create_app(settings: Settings = None) -> FastAPI:
+    print("create_app.start")
     settings = settings or get_settings()
+    print("create_app.settings_loaded")
     settings.validate()
     configure_logging(settings)
+    print("create_app.logging_configured")
+
+    from app.api.middleware import register_exception_handlers, register_middleware
+    from app.api.routes import register_routers
+    from app.db.session import create_engine_and_session_factory
+    from app.integrations.wechat_auth import DevBypassWechatAuthClient, NullWechatAuthClient, RealWechatAuthClient
+    from app.services.bootstrap_service import BootstrapService
+
+    print("create_app.modules_imported")
 
     app = FastAPI(title="xinge-backend", version="0.1.0")
     app.state.settings = settings
@@ -31,17 +35,19 @@ def create_app(settings: Settings = None) -> FastAPI:
         )
     else:
         app.state.wechat_auth_client = NullWechatAuthClient()
-    if settings.is_real_payment_ready():
-        app.state.wechat_pay_client = RealWechatPayClient(settings)
-    else:
-        app.state.wechat_pay_client = NullWechatPayClient()
-    BootstrapService(engine, session_factory).run()
+    app.state.wechat_pay_client = None
     log_startup_environment(settings, wechat_auth_client=app.state.wechat_auth_client)
+    print("create_app.startup_logged")
+    BootstrapService(engine, session_factory).run(
+        seed_school_fixtures=settings.seed_school_fixtures_on_startup,
+    )
+    print("create_app.bootstrap_done")
 
     register_middleware(app)
     register_exception_handlers(app)
     register_routers(app)
     app.mount("/static", StaticFiles(directory="static"), name="static")
+    print("create_app.ready")
     return app
 
 

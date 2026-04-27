@@ -66,6 +66,7 @@ class Settings:
     log_all_api_payloads: bool = False
     unsafe_disable_validation: bool = False
     log_current_user_resolution: bool = False
+    seed_school_fixtures_on_startup: bool = True
 
     def validate(self) -> None:
         if len(self.encryption_key) < 32:
@@ -138,4 +139,5 @@ def get_settings() -> Settings:
         log_all_api_payloads=os.getenv("LOG_ALL_API_PAYLOADS", "false").lower() == "true",
         unsafe_disable_validation=os.getenv("UNSAFE_DISABLE_VALIDATION", "false").lower() == "true",
         log_current_user_resolution=os.getenv("LOG_CURRENT_USER_RESOLUTION", "false").lower() == "true",
+        seed_school_fixtures_on_startup=os.getenv("SEED_SCHOOL_FIXTURES_ON_STARTUP", "true").lower() == "true",
     )

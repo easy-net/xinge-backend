@@ -34,7 +34,21 @@ def get_wechat_auth_client(request: Request):
 
 
 def get_wechat_pay_client(request: Request):
-    return request.app.state.wechat_pay_client
+    client = getattr(request.app.state, "wechat_pay_client", None)
+    if client is not None:
+        return client
+
+    settings = request.app.state.settings
+    from app.integrations.wechat_pay import NullWechatPayClient, RealWechatPayClient
+
+    if settings.is_real_payment_ready():
+        logger.info("wechat_pay_client.init mode=real")
+        client = RealWechatPayClient(settings)
+    else:
+        logger.info("wechat_pay_client.init mode=mock")
+        client = NullWechatPayClient()
+    request.app.state.wechat_pay_client = client
+    return client
 
 
 def get_mp_request_context(

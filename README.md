@@ -39,6 +39,24 @@ Or:
 sh scripts/run_api.sh
 ```
 
+For local HTTPS with a self-signed cert on this machine:
+
+```bash
+sh scripts/run_local_https.sh
+```
+
+To start with HTTPS directly in `uvicorn`, provide certificate paths:
+
+```bash
+export HOST=0.0.0.0
+export PORT=8443
+export SSL_CERTFILE=/etc/letsencrypt/live/your-domain/fullchain.pem
+export SSL_KEYFILE=/etc/letsencrypt/live/your-domain/privkey.pem
+sh scripts/run_api.sh
+```
+
+If `PORT=443`, Linux usually requires `sudo` or `CAP_NET_BIND_SERVICE`.
+
 ## Health Endpoints
 
 - `GET /healthz`
@@ -54,6 +72,33 @@ This repo now includes:
 
 The current default cloud runtime uses `sqlite` in `/tmp/xinge.db` only for smoke deployment. For a persistent production deployment, switch `DATABASE_URL` to MySQL before going live.
 
+## Docker
+
+Build:
+
+```bash
+docker build -t xinge-backend .
+```
+
+Run with the same variables as local `.env`:
+
+```bash
+docker run --rm -p 8000:8000 --env-file .env xinge-backend
+```
+
+If the container must reach WeChat through a proxy or custom CA bundle, keep these fields in `.env` aligned with the host environment:
+
+```bash
+HTTP_PROXY=
+HTTPS_PROXY=
+ALL_PROXY=
+NO_PROXY=localhost,127.0.0.1
+WECHAT_VERIFY_SSL=true
+WECHAT_CA_BUNDLE_PATH=
+```
+
+The image already includes the system CA bundle at `/etc/ssl/certs/ca-certificates.crt`, and `requests` inside the container uses it by default through `SSL_CERT_FILE` and `REQUESTS_CA_BUNDLE`.
+
 ## Production Config
 
 Use `.env.example` as the baseline:
@@ -61,6 +106,7 @@ Use `.env.example` as the baseline:
 - set `DATABASE_URL` to a real MySQL instance
 - set `ENCRYPTION_KEY` to a secret with at least 32 characters
 - set `ALLOW_EPHEMERAL_DB=false`
+- for serverless platforms such as Vercel, consider `SEED_SCHOOL_FIXTURES_ON_STARTUP=false` to avoid cold-start seeding pressure
 - set `WECHAT_APP_ID` and `WECHAT_APP_SECRET` for real mini program login
 - `/mp/auth/bind-phone` will call WeChat `getuserphonenumber` with the `phone_code` from `wx.getPhoneNumber()`
 - if you want real WeChat Pay, also set:

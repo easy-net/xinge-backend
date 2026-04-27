@@ -1,3 +1,5 @@
+import logging
+
 import app.db.models  # noqa: F401
 from sqlalchemy import inspect
 from sqlalchemy.exc import IntegrityError
@@ -317,13 +319,18 @@ class BootstrapService:
     def __init__(self, engine, session_factory):
         self.engine = engine
         self.session_factory = session_factory
+        self.logger = logging.getLogger(__name__)
 
-    def run(self):
+    def run(self, *, seed_school_fixtures: bool = True):
+        self.logger.info("bootstrap.start seed_school_fixtures=%s", seed_school_fixtures)
         Base.metadata.create_all(self.engine)
+        self.logger.info("bootstrap.schema.created")
         self._patch_legacy_schema()
+        self.logger.info("bootstrap.schema.patched")
         session = self.session_factory()
         try:
             self._seed_default_admin(session)
+            self.logger.info("bootstrap.admin.ready")
             repository = ProductConfigRepository(session)
             if repository.get_current() is None:
                 session.add(
@@ -341,12 +348,17 @@ class BootstrapService:
                     )
                 )
                 session.commit()
+                self.logger.info("bootstrap.product_config.seeded")
 
-            if session.query(School).count() == 0:
+            if seed_school_fixtures and session.query(School).count() == 0:
                 self._seed_schools(session)
                 session.commit()
+                self.logger.info("bootstrap.schools.seeded")
+            elif not seed_school_fixtures:
+                self.logger.info("bootstrap.schools.skipped")
         finally:
             session.close()
+            self.logger.info("bootstrap.done")
 
     def _seed_default_admin(self, session):
         user_repository = UserRepository(session)

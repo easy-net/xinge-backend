@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Depends, Query
 
+from app.api.deps import get_wechat_pay_client
 from app.core.response import public_response
 
 router = APIRouter(tags=["admin/finance"])
@@ -7,10 +8,9 @@ router = APIRouter(tags=["admin/finance"])
 
 @router.get("/admin/wechat-pay/balances")
 def admin_get_wechat_pay_balances(
-    request: Request,
     focus: str = Query("OPERATION", pattern="^(BASIC|OPERATION|FEES)$"),
+    client=Depends(get_wechat_pay_client),
 ):
-    client = request.app.state.wechat_pay_client
     account_types = ["OPERATION", "BASIC", "FEES"]
     balances = {}
     for account_type in account_types:

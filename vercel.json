@@ -1,16 +1,3 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "experimentalServices": {
-    "api": {
-      "entrypoint": "app/main.py",
-      "routePrefix": "/",
-      "maxDuration": 60,
-      "includeFiles": [
-        "static/**",
-        "certs/**",
-        "migrations/**",
-        "alembic.ini"
-      ]
-    }
-  }
+  "$schema": "https://openapi.vercel.sh/vercel.json"
 }

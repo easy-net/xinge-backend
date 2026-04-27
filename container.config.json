@@ -1,5 +1,5 @@
 {
-  "containerPort": 80,
+  "containerPort": 8000,
   "dockerfilePath": "Dockerfile",
   "buildDir": "",
   "minNum": 0,
@@ -13,11 +13,24 @@
     "DATABASE_URL": "mysql+pymysql://root:password@mysql:3306/xinge_backend",
     "ENCRYPTION_KEY": "replace-with-a-32-char-or-longer-secret-key",
     "ALLOW_EPHEMERAL_DB": "false",
+    "HOST": "0.0.0.0",
+    "PORT": "8000",
+    "PAYMENT_MODE": "mock",
     "WECHAT_APP_ID": "replace-with-mini-program-app-id",
     "WECHAT_APP_SECRET": "replace-with-mini-program-app-secret",
+    "WECHAT_NOTIFY_URL": "https://example.com/api/v1/payments/notify",
+    "WECHAT_TRANSFER_NOTIFY_URL": "https://example.com/api/v1/payments/transfer/notify",
+    "WECHAT_VERIFY_SSL": "true",
+    "WECHAT_CA_BUNDLE_PATH": "",
+    "HTTP_PROXY": "",
+    "HTTPS_PROXY": "",
+    "ALL_PROXY": "",
+    "NO_PROXY": "localhost,127.0.0.1",
     "DEV_AUTH_BYPASS": "false",
     "LOG_MP_REPORT_PAYLOADS": "false",
-    "UNSAFE_DISABLE_VALIDATION": "false"
+    "UNSAFE_DISABLE_VALIDATION": "false",
+    "LOG_CURRENT_USER_RESOLUTION": "false",
+    "LOG_ALL_API_PAYLOADS": "false"
   },
   "customLogs": "stdout",
   "initialDelaySeconds": 2
