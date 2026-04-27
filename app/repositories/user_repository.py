@@ -33,10 +33,13 @@ class UserRepository:
         page_size: int,
         exclude_user_id: Optional[int] = None,
         keyword: str = "",
+        role: Optional[str] = None,
     ):
         stmt = select(User)
         if exclude_user_id is not None:
             stmt = stmt.where(User.id != exclude_user_id)
+        if role is not None:
+            stmt = stmt.where(User.role == role)
 
         normalized = (keyword or "").strip()
         if normalized:

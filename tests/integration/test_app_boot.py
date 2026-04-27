@@ -40,6 +40,12 @@ def test_static_admin_dashboard_page_is_accessible(client):
     assert "管理后台" in response.text
 
 
+def test_static_admin_users_page_is_accessible(client):
+    response = client.get("/static/admin-users.html")
+    assert response.status_code == 200
+    assert "用户管理台" in response.text
+
+
 def test_static_admin_withdrawals_page_is_accessible(client):
     response = client.get("/static/admin-withdrawals.html")
     assert response.status_code == 200

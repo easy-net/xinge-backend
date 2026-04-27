@@ -35,5 +35,5 @@ if [ -n "$SSL_CERTFILE" ] || [ -n "$SSL_KEYFILE" ]; then
     --ssl-certfile "$SSL_CERTFILE" \
     --ssl-keyfile "$SSL_KEYFILE"
 else
-  uvicorn app.main:app --host "$HOST" --port "$PORT"
+  uvicorn app.main:app --host "$HOST" --port 8000 #"$PORT"
 fi
