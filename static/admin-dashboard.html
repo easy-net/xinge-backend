@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>管理后台</title>
+  <style>
+    :root {
+      --bg: #eef3f9;
+      --panel: rgba(255,255,255,0.92);
+      --text: #14213d;
+      --muted: #667085;
+      --line: #e2e8f0;
+      --primary: #1768ff;
+      --primary-deep: #0f52d6;
+      --shadow: 0 18px 50px rgba(20, 33, 61, 0.08);
+      --radius: 20px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(23, 104, 255, 0.14), transparent 26%),
+        linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 18px;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .sidebar, .content {
+      border-radius: 28px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+    .sidebar {
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .brand h1 {
+      margin: 0;
+      font-size: 30px;
+    }
+    .brand p {
+      margin: 10px 0 0;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 14px;
+    }
+    .nav {
+      display: grid;
+      gap: 10px;
+    }
+    .nav-item {
+      width: 100%;
+      text-align: left;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.95);
+      border-radius: 18px;
+      padding: 16px;
+      cursor: pointer;
+      transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+    }
+    .nav-item:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 28px rgba(23,104,255,0.14);
+    }
+    .nav-item.active {
+      border-color: rgba(23,104,255,0.35);
+      background: linear-gradient(135deg, rgba(23,104,255,0.10) 0%, rgba(15,82,214,0.06) 100%);
+    }
+    .nav-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .nav-desc {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .quick-links {
+      margin-top: auto;
+      border-top: 1px solid var(--line);
+      padding-top: 16px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .quick-links a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+    .content {
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .content-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 6px 0;
+    }
+    .content-head h2 {
+      margin: 0;
+      font-size: 24px;
+    }
+    .content-head p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .head-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .head-actions button, .head-actions a {
+      height: 42px;
+      padding: 0 14px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      font-size: 14px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+    }
+    iframe {
+      width: 100%;
+      flex: 1;
+      min-height: 760px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: #fff;
+    }
+    @media (max-width: 1100px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+      iframe {
+        min-height: 680px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <h1>管理后台</h1>
+        <p>把现有的分销审批、下级代理挂接、配额分配、提现审核和余额看板收拢到一个统一入口。</p>
+      </div>
+
+      <div class="nav" id="nav"></div>
+
+      <div class="quick-links">
+        当前入口：<a href="/static/admin-dashboard.html" target="_blank">/static/admin-dashboard.html</a>
+      </div>
+    </aside>
+
+    <main class="content">
+      <div class="content-head">
+        <div>
+          <h2 id="pageTitle">管理后台</h2>
+          <p id="pageDesc">请选择左侧模块。</p>
+        </div>
+        <div class="head-actions">
+          <button id="reloadButton">刷新当前模块</button>
+          <a id="openButton" href="/static/admin-distributor.html" target="_blank">新窗口打开</a>
+        </div>
+      </div>
+      <iframe id="moduleFrame" src="/static/admin-distributor.html" title="管理后台模块"></iframe>
+    </main>
+  </div>
+
+  <script>
+    const modules = [
+      {
+        id: "applications",
+        title: "分销申请审批",
+        desc: "审核分销申请，处理通过和驳回。",
+        url: "/static/admin-distributor.html",
+      },
+      {
+        id: "downlines",
+        title: "下级代理管理",
+        desc: "挂接直属下级、解除关系、查看直属下级列表。",
+        url: "/static/admin-downline-assignment.html",
+      },
+      {
+        id: "quota",
+        title: "配额分配",
+        desc: "给直属下级分销商发放报告配额。",
+        url: "/static/admin-quota-allocation.html",
+      },
+      {
+        id: "withdrawals",
+        title: "提现审核",
+        desc: "审核分销商提现并跟踪状态。",
+        url: "/static/admin-withdrawals.html",
+      },
+      {
+        id: "balances",
+        title: "运营余额看板",
+        desc: "查看微信支付运营账户余额情况。",
+        url: "/static/admin-operation-balance.html",
+      },
+    ];
+
+    const nav = document.getElementById("nav");
+    const frame = document.getElementById("moduleFrame");
+    const pageTitle = document.getElementById("pageTitle");
+    const pageDesc = document.getElementById("pageDesc");
+    const openButton = document.getElementById("openButton");
+
+    function currentModuleId() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("module") || "applications";
+    }
+
+    function renderNav(activeId) {
+      nav.innerHTML = modules.map(item => `
+        <button class="nav-item ${item.id === activeId ? "active" : ""}" data-module-id="${item.id}">
+          <div class="nav-title">${item.title}</div>
+          <div class="nav-desc">${item.desc}</div>
+        </button>
+      `).join("");
+    }
+
+    function openModule(moduleId) {
+      const item = modules.find(entry => entry.id === moduleId) || modules[0];
+      frame.src = item.url;
+      pageTitle.textContent = item.title;
+      pageDesc.textContent = item.desc;
+      openButton.href = item.url;
+      const params = new URLSearchParams(window.location.search);
+      params.set("module", item.id);
+      window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
+      renderNav(item.id);
+    }
+
+    nav.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-module-id]");
+      if (!button) return;
+      openModule(button.dataset.moduleId);
+    });
+
+    document.getElementById("reloadButton").addEventListener("click", () => {
+      frame.src = frame.src;
+    });
+
+    openModule(currentModuleId());
+  </script>
+</body>
+</html>
