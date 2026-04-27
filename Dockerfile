@@ -31,3 +31,4 @@ RUN apt-get update \
 EXPOSE 8000
 
 CMD ["sh", "/app/scripts/run_api.sh"]
+
