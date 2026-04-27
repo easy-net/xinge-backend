@@ -583,6 +583,33 @@ class DistributorService:
             "total": total,
         }
 
+    def admin_list_assignable_users(self, *, page: int, page_size: int, keyword: str = ""):
+        items, total = self.user_repository.list_users_with_total(page=page, page_size=page_size, keyword=keyword)
+        list_items = []
+        for item in items:
+            profile = self.repository.get_profile_for_user(user_id=item.id)
+            list_items.append(
+                {
+                    "user_id": item.id,
+                    "nickname": item.nickname or item.phone_masked or "用户{}".format(item.id),
+                    "avatar_url": item.avatar_url,
+                    "openid": item.openid,
+                    "phone_masked": item.phone_masked or None,
+                    "role": item.role,
+                    "is_distributor": item.is_distributor,
+                    "distributor_level": getattr(profile, "distributor_level", None),
+                    "parent_distributor_id": getattr(profile, "parent_distributor_id", None),
+                    "created_at": item.created_at.isoformat() + "Z",
+                }
+            )
+        return {
+            "list": list_items,
+            "page": page,
+            "page_size": page_size,
+            "page_total": (total + page_size - 1) // page_size if page_size else 0,
+            "total": total,
+        }
+
     def admin_list_distributor_downlines(self, *, user_id: int, page: int, page_size: int, level=None):
         user = self.user_repository.get_by_id(user_id)
         if user is None:
@@ -630,6 +657,88 @@ class DistributorService:
         data = self.allocate_quota(user=user, downline_user_id=downline_user_id, amount=amount)
         data["source_user_id"] = user_id
         return data
+
+    def admin_assign_downline(self, *, user_id: int, downline_user_id: int, distributor_level: str = ""):
+        parent_user = self.user_repository.get_by_id(user_id)
+        if parent_user is None:
+            raise NotFoundError(message="parent user not found")
+
+        parent_profile = self.repository.get_profile_for_user(user_id=parent_user.id)
+        if parent_user.role != "admin" and parent_profile is None:
+            raise ValidationError(message="parent user is not a distributor")
+        if parent_profile is not None and parent_profile.distributor_level == "campus":
+            raise ForbiddenError(message="campus distributor cannot manage downlines")
+
+        child_user = self.user_repository.get_by_id(downline_user_id)
+        if child_user is None:
+            raise NotFoundError(message="downline user not found")
+        if child_user.id == parent_user.id:
+            raise ValidationError(message="cannot assign self as downline")
+        if child_user.role == "admin":
+            raise ValidationError(message="admin user cannot be assigned as downline")
+
+        child_profile = self.repository.get_profile_for_user(user_id=child_user.id)
+        parent_level = "admin" if parent_user.role == "admin" and parent_profile is None else parent_profile.distributor_level
+        target_level = (distributor_level or getattr(child_profile, "distributor_level", "") or self._default_downline_level(parent_level)).strip().lower()
+        self._validate_downline_level(parent_level=parent_level, child_level=target_level)
+
+        if self._would_create_downline_cycle(parent_user_id=parent_user.id, downline_user_id=child_user.id):
+            raise ValidationError(message="cannot assign ancestor as direct downline")
+
+        previous_parent_id = getattr(child_profile, "parent_distributor_id", None)
+        if child_profile is None:
+            child_profile = self.repository.create_profile(
+                user_id=child_user.id,
+                distributor_level=target_level,
+                parent_distributor_id=parent_user.id,
+                quota_total=0,
+            )
+        else:
+            child_profile.distributor_level = target_level
+            child_profile.parent_distributor_id = parent_user.id
+
+        child_user.role = "distributor"
+        child_user.is_distributor = True
+        self.db.commit()
+        return {
+            "user_id": parent_user.id,
+            "downline_user_id": child_user.id,
+            "previous_parent_distributor_id": previous_parent_id,
+            "parent_distributor_id": child_profile.parent_distributor_id,
+            "distributor_level": child_profile.distributor_level,
+            "status": "assigned",
+        }
+
+    def admin_unassign_downline(self, *, user_id: int, downline_user_id: int):
+        parent_user = self.user_repository.get_by_id(user_id)
+        if parent_user is None:
+            raise NotFoundError(message="parent user not found")
+
+        child_user = self.user_repository.get_by_id(downline_user_id)
+        if child_user is None:
+            raise NotFoundError(message="downline user not found")
+
+        child_profile = self.repository.get_profile_for_user(user_id=child_user.id)
+        if child_profile is None:
+            raise NotFoundError(message="downline profile not found")
+        if child_profile.parent_distributor_id != parent_user.id:
+            raise ValidationError(message="downline is not directly assigned to current parent")
+
+        direct_downlines = self.repository.count_direct_downlines(parent_distributor_id=child_user.id)
+        if direct_downlines > 0:
+            raise ValidationError(message="cannot unassign distributor with existing downlines")
+
+        previous_parent_id = child_profile.parent_distributor_id
+        child_profile.parent_distributor_id = None
+        self.db.commit()
+        return {
+            "user_id": parent_user.id,
+            "downline_user_id": child_user.id,
+            "previous_parent_distributor_id": previous_parent_id,
+            "parent_distributor_id": None,
+            "distributor_level": child_profile.distributor_level,
+            "status": "unassigned",
+        }
 
     def _require_distributor(self, user):
         logger = logging.getLogger(__name__)
@@ -864,3 +973,33 @@ class DistributorService:
             "campus": 50,
         }
         return defaults.get(distributor_level, 0)
+
+    def _default_downline_level(self, parent_level: str) -> str:
+        if parent_level == "strategic":
+            return "city"
+        return "campus"
+
+    def _validate_downline_level(self, *, parent_level: str, child_level: str) -> None:
+        allowed_levels = {
+            "admin": {"strategic", "city", "campus"},
+            "strategic": {"city", "campus"},
+            "city": {"campus"},
+            "campus": set(),
+        }
+        if child_level not in {"strategic", "city", "campus"}:
+            raise ValidationError(message="invalid distributor level")
+        if child_level not in allowed_levels.get(parent_level, set()):
+            raise ValidationError(message="downline level is not allowed for current parent level")
+
+    def _would_create_downline_cycle(self, *, parent_user_id: int, downline_user_id: int) -> bool:
+        cursor = parent_user_id
+        visited = set()
+        while cursor and cursor not in visited:
+            visited.add(cursor)
+            profile = self.repository.get_profile_for_user(user_id=cursor)
+            if profile is None or profile.parent_distributor_id is None:
+                return False
+            if profile.parent_distributor_id == downline_user_id:
+                return True
+            cursor = profile.parent_distributor_id
+        return False

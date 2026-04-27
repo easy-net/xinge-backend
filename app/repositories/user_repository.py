@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.db.models.device import UserDevice
@@ -25,6 +25,36 @@ class UserRepository:
         return self.db.execute(
             stmt.order_by(User.created_at.desc(), User.id.desc()).offset((page - 1) * page_size).limit(page_size)
         ).scalars().all()
+
+    def list_users_with_total(
+        self,
+        *,
+        page: int,
+        page_size: int,
+        exclude_user_id: Optional[int] = None,
+        keyword: str = "",
+    ):
+        stmt = select(User)
+        if exclude_user_id is not None:
+            stmt = stmt.where(User.id != exclude_user_id)
+
+        normalized = (keyword or "").strip()
+        if normalized:
+            pattern = "%{}%".format(normalized)
+            stmt = stmt.where(
+                or_(
+                    User.nickname.ilike(pattern),
+                    User.openid.ilike(pattern),
+                    User.phone_masked.ilike(pattern),
+                    cast(User.id, String).ilike(pattern),
+                )
+            )
+
+        total = self.db.execute(select(func.count()).select_from(stmt.subquery())).scalar_one()
+        items = self.db.execute(
+            stmt.order_by(User.created_at.desc(), User.id.desc()).offset((page - 1) * page_size).limit(page_size)
+        ).scalars().all()
+        return items, total
 
     def create_user(self, *, openid: str, unionid: str = "") -> User:
         user = User(openid=openid, unionid=unionid)

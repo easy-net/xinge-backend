@@ -32,6 +32,22 @@ def admin_list_distributor_users(
     return public_response(data)
 
 
+@router.get("/admin/distributor/candidates")
+def admin_list_assignable_users(
+    request: Request,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=200),
+    keyword: str = Query(""),
+    db: Session = Depends(get_db_session),
+):
+    data = DistributorService(db, request.app.state.wechat_pay_client, request.app.state.settings).admin_list_assignable_users(
+        page=page,
+        page_size=page_size,
+        keyword=keyword,
+    )
+    return public_response(data)
+
+
 @router.get("/admin/distributor/users/{user_id}/downlines")
 def admin_list_distributor_user_downlines(
     request: Request,
@@ -46,6 +62,35 @@ def admin_list_distributor_user_downlines(
         page=page,
         page_size=page_size,
         level=level or None,
+    )
+    return public_response(data)
+
+
+@router.post("/admin/distributor/users/{user_id}/downlines/assign")
+def admin_assign_distributor_downline(
+    request: Request,
+    user_id: int,
+    body: dict = Body(default_factory=dict),
+    db: Session = Depends(get_db_session),
+):
+    data = DistributorService(db, request.app.state.wechat_pay_client, request.app.state.settings).admin_assign_downline(
+        user_id=user_id,
+        downline_user_id=int(body.get("downline_user_id", 0)),
+        distributor_level=str(body.get("distributor_level", "") or ""),
+    )
+    return public_response(data)
+
+
+@router.post("/admin/distributor/users/{user_id}/downlines/unassign")
+def admin_unassign_distributor_downline(
+    request: Request,
+    user_id: int,
+    body: dict = Body(default_factory=dict),
+    db: Session = Depends(get_db_session),
+):
+    data = DistributorService(db, request.app.state.wechat_pay_client, request.app.state.settings).admin_unassign_downline(
+        user_id=user_id,
+        downline_user_id=int(body.get("downline_user_id", 0)),
     )
     return public_response(data)
 

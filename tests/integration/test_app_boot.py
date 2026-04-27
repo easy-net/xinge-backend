@@ -28,6 +28,12 @@ def test_static_admin_quota_allocation_page_is_accessible(client):
     assert "分销配额分配台" in response.text
 
 
+def test_static_admin_downline_assignment_page_is_accessible(client):
+    response = client.get("/static/admin-downline-assignment.html")
+    assert response.status_code == 200
+    assert "下级代理分配台" in response.text
+
+
 def test_static_admin_withdrawals_page_is_accessible(client):
     response = client.get("/static/admin-withdrawals.html")
     assert response.status_code == 200
