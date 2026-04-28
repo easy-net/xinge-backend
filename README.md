@@ -70,7 +70,13 @@ This repo now includes:
 - `.dockerignore`
 - `container.config.json`
 
-The current default cloud runtime uses `sqlite` in `/tmp/xinge.db` only for smoke deployment. For a persistent production deployment, switch `DATABASE_URL` to MySQL before going live.
+The current deployment baseline is MySQL. This repo is configured to use:
+
+```bash
+mysql+pymysql://admin:***@sh-cynosdbmysql-grp-k7w2orm8.sql.tencentcdb.com:28550/xinge_backend?charset=utf8mb4
+```
+
+If you override `DATABASE_URL`, keep it on MySQL for production.
 
 ## Docker
 
@@ -100,6 +106,15 @@ WECHAT_CA_BUNDLE_PATH=
 The image already includes the system CA bundle at `/etc/ssl/certs/ca-certificates.crt`, and `requests` inside the container uses it by default through `SSL_CERT_FILE` and `REQUESTS_CA_BUNDLE`.
 
 For WeChat Cloud Hosting, keep `container.config.json` env keys aligned with `.env.example`, and set the real values in the hosting console. The service listens on `PORT=80` by default, which matches the current cloud hosting config.
+
+If you run `PAYMENT_MODE=real`, make sure the container can actually read:
+
+```bash
+./certs/apiclient_key.pem
+./certs/wechatpay_platform.pem
+```
+
+This repository currently does not include a `certs/` directory, so those files must be mounted or injected during deployment.
 
 ## Production Config
 
