@@ -41,6 +41,7 @@ COPY pyproject.toml setup.py README.md /app/
 COPY app /app/app
 COPY .env.example /app/.env.example
 COPY scripts /app/scripts
+COPY certs /app/certs
 COPY static /app/static
 COPY migrations /app/migrations
 COPY alembic.ini /app/alembic.ini
