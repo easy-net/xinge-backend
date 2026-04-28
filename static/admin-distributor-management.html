@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>分销商管理台</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: rgba(255,255,255,0.94);
+      --text: #14213d;
+      --muted: #667085;
+      --line: #e6ebf2;
+      --primary: #1768ff;
+      --primary-deep: #0f52d6;
+      --success: #0f9f6e;
+      --shadow: 0 18px 50px rgba(20, 33, 61, 0.08);
+      --radius: 18px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(23, 104, 255, 0.12), transparent 28%),
+        linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
+    }
+    .page { max-width: 1360px; margin: 0 auto; padding: 32px 20px 48px; }
+    .hero { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 24px; }
+    .hero h1 { margin: 0; font-size: 32px; font-weight: 700; }
+    .hero p { margin: 10px 0 0; color: var(--muted); font-size: 14px; }
+    .hero-meta { padding: 14px 18px; border-radius: 16px; background: var(--card); box-shadow: var(--shadow); color: var(--muted); font-size: 13px; }
+    .layout { display: grid; grid-template-columns: 440px 1fr; gap: 18px; }
+    .panel { border-radius: 24px; background: var(--card); box-shadow: var(--shadow); overflow: hidden; }
+    .panel-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 18px 18px 12px; border-bottom: 1px solid var(--line); }
+    .panel-head h2 { margin: 0; font-size: 18px; }
+    .panel-body { padding: 18px; }
+    .toolbar, .inline-toolbar, .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .toolbar { margin-bottom: 14px; }
+    select, input, button {
+      border: 1px solid var(--line); border-radius: 12px; height: 42px; padding: 0 14px; font-size: 14px; background: #fff;
+    }
+    input { min-width: 200px; }
+    button { cursor: pointer; transition: transform .15s ease, box-shadow .15s ease; }
+    button:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(23,104,255,0.14); }
+    .btn-primary { color: #fff; border-color: var(--primary); background: linear-gradient(135deg, var(--primary) 0%, var(--primary-deep) 100%); }
+    .btn-success { color: #fff; border-color: var(--success); background: linear-gradient(135deg, #19ab73 0%, var(--success) 100%); }
+    .hint, .meta, .small { color: var(--muted); font-size: 13px; line-height: 1.6; }
+    .list { display: grid; gap: 12px; }
+    .card { border: 1px solid var(--line); border-radius: 18px; padding: 16px; background: rgba(255,255,255,0.95); }
+    .card.active { border-color: rgba(23,104,255,0.35); box-shadow: 0 12px 30px rgba(23,104,255,0.12); }
+    .card-title { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 10px; }
+    .card-title strong { font-size: 16px; }
+    .pill { display: inline-flex; align-items: center; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--primary); background: rgba(23,104,255,0.12); }
+    .form-grid { display: grid; gap: 12px; }
+    label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 6px; }
+    .empty { padding: 56px 16px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 18px; }
+    .toast {
+      position: fixed; right: 20px; bottom: 20px; min-width: 220px; max-width: 360px; padding: 14px 16px; border-radius: 14px;
+      background: rgba(20,33,61,0.96); color: #fff; box-shadow: 0 18px 48px rgba(20,33,61,0.24);
+      opacity: 0; pointer-events: none; transform: translateY(12px); transition: all .18s ease;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    @media (max-width: 1080px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="hero">
+      <div>
+        <h1>分销商管理台</h1>
+        <p>支持修改分销商代理等级和可提现金额。可提现金额以元输入，后台自动换算成分。</p>
+      </div>
+      <div class="hero-meta" id="heroMeta">正在加载分销商...</div>
+    </div>
+
+    <div class="layout">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>分销商列表</h2>
+          <div class="inline-toolbar">
+            <select id="levelFilter">
+              <option value="">全部级别</option>
+              <option value="strategic">strategic</option>
+              <option value="city">city</option>
+              <option value="campus">campus</option>
+            </select>
+            <button class="btn-primary" id="refreshButton">刷新</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="hint">先选择一个分销商，再在右侧修改代理等级和可提现金额。</div>
+          <div class="list" id="userList">
+            <div class="empty">正在加载分销商...</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>编辑分销商</h2>
+        </div>
+        <div class="panel-body">
+          <div class="form-grid">
+            <div>
+              <label>当前分销商</label>
+              <input id="selectedUserName" type="text" value="-" readonly />
+            </div>
+            <div>
+              <label for="levelSelect">代理等级</label>
+              <select id="levelSelect">
+                <option value="strategic">strategic</option>
+                <option value="city">city</option>
+                <option value="campus">campus</option>
+              </select>
+            </div>
+            <div>
+              <label for="withdrawableInput">可提现金额（元）</label>
+              <input id="withdrawableInput" type="number" min="0" step="0.01" placeholder="例如 1000.00" />
+            </div>
+          </div>
+          <div class="toolbar" style="margin-top:16px;">
+            <button class="btn-success" id="saveButton">保存修改</button>
+          </div>
+          <div class="hint" id="formHint">请先从左侧选择一个分销商。</div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const state = {
+      users: [],
+      level: "",
+      selectedUser: null,
+    };
+
+    const heroMeta = document.getElementById("heroMeta");
+    const userList = document.getElementById("userList");
+    const levelFilter = document.getElementById("levelFilter");
+    const levelSelect = document.getElementById("levelSelect");
+    const selectedUserName = document.getElementById("selectedUserName");
+    const withdrawableInput = document.getElementById("withdrawableInput");
+    const formHint = document.getElementById("formHint");
+    const toast = document.getElementById("toast");
+
+    function showToast(message, isError = false) {
+      toast.textContent = message;
+      toast.style.background = isError ? "rgba(160, 34, 34, 0.96)" : "rgba(20, 33, 61, 0.96)";
+      toast.classList.add("show");
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => toast.classList.remove("show"), 2200);
+    }
+
+    async function requestJson(url, options = {}) {
+      const response = await fetch(url, {
+        headers: { "Content-Type": "application/json" },
+        ...options,
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload.code !== 0) {
+        throw new Error(payload.message || `请求失败: ${response.status}`);
+      }
+      return payload;
+    }
+
+    function fenToYuan(value) {
+      return (Number(value || 0) / 100).toFixed(2);
+    }
+
+    function yuanToFen(value) {
+      return Math.round(Number(value || 0) * 100);
+    }
+
+    function renderUsers() {
+      if (!state.users.length) {
+        userList.innerHTML = '<div class="empty">没有匹配的分销商</div>';
+        return;
+      }
+      userList.innerHTML = state.users.map(user => `
+        <div class="card ${state.selectedUser && state.selectedUser.user_id === user.user_id ? "active" : ""}" data-user-id="${user.user_id}">
+          <div class="card-title">
+            <div>
+              <strong>${user.nickname || "未命名分销商"}</strong>
+              <div class="small">UID: ${user.user_id}</div>
+            </div>
+            <span class="pill">${user.distributor_level}</span>
+          </div>
+          <div class="meta">父级 UID: ${user.parent_distributor_id || "-"}</div>
+          <div class="meta">可提现金额: ${fenToYuan(user.withdrawable_amount)} 元</div>
+          <div class="meta">配额总量 ${user.quota_total} / 已分配 ${user.quota_used} / 剩余 ${user.quota_remaining}</div>
+        </div>
+      `).join("");
+    }
+
+    function syncForm() {
+      if (!state.selectedUser) {
+        selectedUserName.value = "-";
+        withdrawableInput.value = "";
+        formHint.textContent = "请先从左侧选择一个分销商。";
+        return;
+      }
+      selectedUserName.value = `${state.selectedUser.nickname || "未命名分销商"} (UID ${state.selectedUser.user_id})`;
+      levelSelect.value = state.selectedUser.distributor_level;
+      withdrawableInput.value = fenToYuan(state.selectedUser.withdrawable_amount);
+      formHint.textContent = "修改后点击保存，金额会按元转换成分写回数据库。";
+    }
+
+    async function loadUsers() {
+      const params = new URLSearchParams({ page: "1", page_size: "200" });
+      if (state.level) params.set("level", state.level);
+      const payload = await requestJson(`/api/v1/admin/distributor/users?${params.toString()}`);
+      state.users = payload.data.list;
+      if (state.selectedUser) {
+        state.selectedUser = state.users.find(item => item.user_id === state.selectedUser.user_id) || null;
+      }
+      renderUsers();
+      syncForm();
+      heroMeta.textContent = `已加载 ${state.users.length} 个分销商`;
+    }
+
+    async function saveChanges() {
+      if (!state.selectedUser) {
+        throw new Error("请先选择分销商");
+      }
+      const payload = await requestJson(`/api/v1/admin/distributor/users/${state.selectedUser.user_id}/update`, {
+        method: "POST",
+        body: JSON.stringify({
+          distributor_level: levelSelect.value,
+          unsettled_commission: yuanToFen(withdrawableInput.value),
+        }),
+      });
+      showToast(`保存成功：UID ${payload.data.user_id}`);
+      await loadUsers();
+    }
+
+    userList.addEventListener("click", (event) => {
+      const card = event.target.closest("[data-user-id]");
+      if (!card) return;
+      const userId = Number(card.dataset.userId);
+      state.selectedUser = state.users.find(item => item.user_id === userId) || null;
+      renderUsers();
+      syncForm();
+    });
+
+    levelFilter.addEventListener("change", async () => {
+      state.level = levelFilter.value;
+      state.selectedUser = null;
+      try {
+        await loadUsers();
+      } catch (error) {
+        showToast(error.message || "加载失败", true);
+      }
+    });
+
+    document.getElementById("refreshButton").addEventListener("click", async () => {
+      try {
+        await loadUsers();
+      } catch (error) {
+        showToast(error.message || "加载失败", true);
+      }
+    });
+
+    document.getElementById("saveButton").addEventListener("click", async () => {
+      try {
+        await saveChanges();
+      } catch (error) {
+        showToast(error.message || "保存失败", true);
+      }
+    });
+
+    loadUsers().catch((error) => {
+      heroMeta.textContent = "页面初始化失败";
+      showToast(error.message || "加载失败", true);
+    });
+  </script>
+</body>
+</html>
