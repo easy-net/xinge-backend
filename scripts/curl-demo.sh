@@ -2,7 +2,7 @@
 set -euo pipefail
 
 BASE_URL="${BASE_URL:-http://127.0.0.1:8000/}"
-# BASE_URL="${BASE_URL:-https://xinge-backend-249835-4-1417316089.sh.run.tcloudbase.com/}"
+# BASE_URL="${BASE_URL:-https://api.xgt.news/}"
 LOGIN_CODE="${LOGIN_CODE:-replace-with-wx-login-code1}"
 SYSTEM_VERSION="${SYSTEM_VERSION:-iOS 17.0}"
 DEVICE_UUID="${DEVICE_UUID:-device-001}"

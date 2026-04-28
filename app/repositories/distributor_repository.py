@@ -3,7 +3,7 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.db.models.distributor import DistributorApplication, DistributorProfile, DistributorQuotaRecord, DistributorWithdrawal
+from app.db.models.distributor import DistributorApplication, DistributorProfile, DistributorQuotaRecord, DistributorWithdrawal, DistributorWithdrawalEvent
 from app.db.models.user import User
 
 
@@ -154,6 +154,34 @@ class DistributorRepository:
         withdrawal.fail_reason = fail_reason or ""
         self.db.flush()
         return withdrawal
+
+    def create_withdrawal_event(
+        self,
+        *,
+        withdraw_id: str,
+        event_type: str,
+        status: str = "",
+        detail: str = "",
+        operator: str = "",
+    ):
+        record = DistributorWithdrawalEvent(
+            withdraw_id=withdraw_id,
+            event_type=event_type,
+            status=status,
+            detail=detail,
+            operator=operator,
+        )
+        self.db.add(record)
+        self.db.flush()
+        return record
+
+    def list_withdrawal_events(self, *, withdraw_id: str):
+        stmt = (
+            select(DistributorWithdrawalEvent)
+            .where(DistributorWithdrawalEvent.withdraw_id == withdraw_id)
+            .order_by(DistributorWithdrawalEvent.created_at.asc(), DistributorWithdrawalEvent.id.asc())
+        )
+        return self.db.execute(stmt).scalars().all()
 
     def count_direct_downlines(self, *, parent_distributor_id: int, distributor_level: Optional[str] = None) -> int:
         stmt = select(func.count(DistributorProfile.id)).where(DistributorProfile.parent_distributor_id == parent_distributor_id)

@@ -41,6 +41,7 @@ def test_admin_get_withdrawal_debug_returns_diagnostics(client, db_session):
     assert data["withdraw_id"] == "WD202604280101"
     assert data["status"] == "processing"
     assert data["diagnostics"]["waiting_callback"] is True
+    assert data["timeline"] == []
 
 
 def test_admin_debug_withdrawal_callback_marks_paid(client, db_session):
@@ -57,3 +58,10 @@ def test_admin_debug_withdrawal_callback_marks_paid(client, db_session):
         select(DistributorWithdrawal).where(DistributorWithdrawal.withdraw_id == "WD202604280102")
     ).scalar_one()
     assert withdrawal.status == "paid"
+
+    detail_response = client.get("/api/v1/admin/distributor/withdrawals/WD202604280102")
+    assert detail_response.status_code == 200
+    timeline = detail_response.json()["data"]["timeline"]
+    assert len(timeline) == 1
+    assert timeline[0]["event_type"] == "callback_success"
+    assert timeline[0]["status"] == "paid"

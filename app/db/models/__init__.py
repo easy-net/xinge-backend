@@ -1,4 +1,4 @@
-from app.db.models.distributor import DistributorApplication, DistributorProfile, DistributorQuotaRecord, DistributorWithdrawal
+from app.db.models.distributor import DistributorApplication, DistributorProfile, DistributorQuotaRecord, DistributorWithdrawal, DistributorWithdrawalEvent
 from app.db.models.device import UserDevice
 from app.db.models.message import Message
 from app.db.models.order import Order
@@ -15,6 +15,7 @@ __all__ = [
     "DistributorApplication",
     "DistributorQuotaRecord",
     "DistributorWithdrawal",
+    "DistributorWithdrawalEvent",
     "School",
     "College",
     "Major",

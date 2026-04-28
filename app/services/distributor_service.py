@@ -116,6 +116,13 @@ class DistributorService:
             bank_account_masked=receiver_masked,
             status="processing" if is_auto_transfer else "pending_review",
         )
+        self._record_withdrawal_event(
+            withdraw_id=withdraw.withdraw_id,
+            event_type="created",
+            status=withdraw.status,
+            detail="amount={} auto_transfer={}".format(withdraw.amount, is_auto_transfer),
+            operator="user:{}".format(user.id),
+        )
 
         transfer_result = None
         if is_auto_transfer:
@@ -133,6 +140,13 @@ class DistributorService:
                     withdrawal=withdraw,
                     status="pending_review",
                     fail_reason=str(error),
+                )
+                self._record_withdrawal_event(
+                    withdraw_id=withdraw.withdraw_id,
+                    event_type="auto_transfer_failed",
+                    status=withdraw.status,
+                    detail=str(error),
+                    operator="system",
                 )
                 transfer_result = None
         
@@ -458,6 +472,13 @@ class DistributorService:
                 completed_at=datetime.utcnow(),
                 fail_reason=str(error),
             )
+            self._record_withdrawal_event(
+                withdraw_id=withdrawal.withdraw_id,
+                event_type="admin_approve_failed",
+                status=withdrawal.status,
+                detail=str(error),
+                operator="admin",
+            )
             self.db.commit()
             logging.getLogger(__name__).exception(
                 "distributor.withdraw.admin_approve_failed withdraw_id=%s user_id=%s amount=%s restored_balance=%s",
@@ -492,6 +513,13 @@ class DistributorService:
         if profile is not None:
             profile.unsettled_commission += withdrawal.amount
         self.repository.update_withdrawal_status(withdrawal=withdrawal, status="rejected", completed_at=datetime.utcnow())
+        self._record_withdrawal_event(
+            withdraw_id=withdrawal.withdraw_id,
+            event_type="admin_rejected",
+            status=withdrawal.status,
+            detail="amount_returned={}".format(withdrawal.amount),
+            operator="admin",
+        )
         self.db.commit()
         logging.getLogger(__name__).info(
             "distributor.withdraw.admin_reject withdraw_id=%s user_id=%s amount=%s restored_balance=%s",
@@ -518,6 +546,7 @@ class DistributorService:
             callback_url = getattr(self.settings, "wechat_transfer_notify_url", "") or getattr(self.settings, "wechat_notify_url", "")
 
         expected_out_bill_no = self._build_wechat_transfer_bill_no(withdrawal.withdraw_id)
+        timeline = self.repository.list_withdrawal_events(withdraw_id=withdrawal.withdraw_id)
         return {
             "withdraw_id": withdrawal.withdraw_id,
             "user_id": withdrawal.user_id,
@@ -546,6 +575,16 @@ class DistributorService:
                 "wechat_pay_client_configured": bool(self.wechat_pay_client),
                 "callback_url_configured": bool(callback_url),
             },
+            "timeline": [
+                {
+                    "event_type": item.event_type,
+                    "status": item.status,
+                    "detail": item.detail,
+                    "operator": item.operator,
+                    "created_at": item.created_at.isoformat() + "Z",
+                }
+                for item in timeline
+            ],
         }
 
     def admin_debug_transfer_callback(self, *, withdraw_id: str, state: str, fail_reason: str = ""):
@@ -955,6 +994,13 @@ class DistributorService:
                 transfer_bill_no=transfer_result.transfer_bill_no,
             )
             profile.total_withdrawn_amount += withdrawal.amount
+            self._record_withdrawal_event(
+                withdraw_id=withdrawal.withdraw_id,
+                event_type="transfer_success",
+                status=withdrawal.status,
+                detail="transfer_bill_no={}".format(transfer_result.transfer_bill_no),
+                operator="wechat",
+            )
             logging.getLogger(__name__).info(
                 "distributor.withdraw.transfer_success withdraw_id=%s transfer_bill_no=%s amount=%s",
                 withdrawal.withdraw_id,
@@ -968,6 +1014,13 @@ class DistributorService:
                 status="processing",
                 completed_at=None,
                 transfer_bill_no=transfer_result.transfer_bill_no,
+            )
+            self._record_withdrawal_event(
+                withdraw_id=withdrawal.withdraw_id,
+                event_type="transfer_accepted",
+                status=withdrawal.status,
+                detail="state={} transfer_bill_no={}".format(transfer_state, transfer_result.transfer_bill_no),
+                operator="wechat",
             )
             logging.getLogger(__name__).info(
                 "distributor.withdraw.transfer_accepted withdraw_id=%s transfer_bill_no=%s amount=%s state=%s",
@@ -1002,6 +1055,13 @@ class DistributorService:
             fail_reason="",
         )
         profile.total_withdrawn_amount += withdrawal.amount
+        self._record_withdrawal_event(
+            withdraw_id=withdrawal.withdraw_id,
+            event_type="admin_approve_bypassed",
+            status=withdrawal.status,
+            detail="transfer_bill_no={}".format(transfer_bill_no),
+            operator="admin",
+        )
         return TransferResult(
             out_bill_no=self._build_wechat_transfer_bill_no(withdrawal.withdraw_id),
             transfer_bill_no=transfer_bill_no,
@@ -1064,6 +1124,13 @@ class DistributorService:
             )
             if profile:
                 profile.total_withdrawn_amount += withdrawal.amount
+            self._record_withdrawal_event(
+                withdraw_id=withdraw_id,
+                event_type="callback_success",
+                status="paid",
+                detail="transfer_bill_no={}".format(transfer_bill_no),
+                operator="wechat-callback",
+            )
             logger.info(
                 "distributor.withdraw.callback.success withdraw_id=%s transfer_bill_no=%s amount=%s",
                 withdraw_id, transfer_bill_no, withdrawal.amount
@@ -1085,6 +1152,13 @@ class DistributorService:
                 completed_at=datetime.utcnow(),
                 transfer_bill_no=transfer_bill_no,
                 fail_reason=fail_reason or state,
+            )
+            self._record_withdrawal_event(
+                withdraw_id=withdraw_id,
+                event_type="callback_failed",
+                status="failed",
+                detail=fail_reason or state,
+                operator="wechat-callback",
             )
             logger.error(
                 "distributor.withdraw.callback.failed withdraw_id=%s transfer_bill_no=%s amount=%s state=%s",
@@ -1131,6 +1205,15 @@ class DistributorService:
             "campus": 50,
         }
         return defaults.get(distributor_level, 0)
+
+    def _record_withdrawal_event(self, *, withdraw_id: str, event_type: str, status: str = "", detail: str = "", operator: str = ""):
+        self.repository.create_withdrawal_event(
+            withdraw_id=withdraw_id,
+            event_type=event_type,
+            status=status,
+            detail=(detail or "")[:1024],
+            operator=(operator or "")[:64],
+        )
 
     def _default_downline_level(self, parent_level: str) -> str:
         if parent_level == "strategic":

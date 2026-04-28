@@ -79,6 +79,18 @@ class DistributorWithdrawal(Base):
     user = relationship("User", back_populates="distributor_withdrawals")
 
 
+class DistributorWithdrawalEvent(Base):
+    __tablename__ = "distributor_withdrawal_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    withdraw_id: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), default="", nullable=False)
+    detail: Mapped[str] = mapped_column(String(1024), default="", nullable=False)
+    operator: Mapped[str] = mapped_column(String(64), default="", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 class DistributorQuotaRecord(Base):
     __tablename__ = "distributor_quota_records"
 
