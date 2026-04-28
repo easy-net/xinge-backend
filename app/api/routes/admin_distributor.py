@@ -12,7 +12,7 @@ router = APIRouter(tags=["admin/distributor"])
 def admin_list_distributor_applications(
     request: Request,
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page_size: int = Query(20, ge=1, le=200),
     status: str = Query("", pattern="^(|pending|approved|rejected)$"),
     db: Session = Depends(get_db_session),
 ):
@@ -24,7 +24,7 @@ def admin_list_distributor_applications(
 def admin_list_distributor_users(
     request: Request,
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page_size: int = Query(20, ge=1, le=200),
     level: str = Query("", pattern="^(|strategic|city|campus)$"),
     db: Session = Depends(get_db_session),
 ):
@@ -53,7 +53,7 @@ def admin_list_distributor_user_downlines(
     request: Request,
     user_id: int,
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page_size: int = Query(20, ge=1, le=200),
     level: str = Query("", pattern="^(|strategic|city|campus)$"),
     db: Session = Depends(get_db_session),
 ):
@@ -91,6 +91,21 @@ def admin_unassign_distributor_downline(
     data = DistributorService(db, request.app.state.wechat_pay_client, request.app.state.settings).admin_unassign_downline(
         user_id=user_id,
         downline_user_id=int(body.get("downline_user_id", 0)),
+    )
+    return public_response(data)
+
+
+@router.post("/admin/distributor/users/{user_id}/update")
+def admin_update_distributor_user(
+    request: Request,
+    user_id: int,
+    body: dict = Body(default_factory=dict),
+    db: Session = Depends(get_db_session),
+):
+    data = DistributorService(db, request.app.state.wechat_pay_client, request.app.state.settings).admin_update_distributor(
+        user_id=user_id,
+        distributor_level=str(body.get("distributor_level", "") or ""),
+        unsettled_commission=int(body.get("unsettled_commission", 0) or 0),
     )
     return public_response(data)
 
@@ -148,7 +163,7 @@ def admin_seed_distributor_quota_records(
 def admin_list_distributor_withdrawals(
     request: Request,
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page_size: int = Query(20, ge=1, le=200),
     status: str = Query("", pattern="^(|pending_review|processing|paid|rejected|failed)$"),
     db: Session = Depends(get_db_session),
 ):

@@ -34,6 +34,12 @@ def test_static_admin_downline_assignment_page_is_accessible(client):
     assert "下级代理分配台" in response.text
 
 
+def test_static_admin_distributor_management_page_is_accessible(client):
+    response = client.get("/static/admin-distributor-management.html")
+    assert response.status_code == 200
+    assert "分销商管理台" in response.text
+
+
 def test_static_admin_dashboard_page_is_accessible(client):
     response = client.get("/static/admin-dashboard.html")
     assert response.status_code == 200

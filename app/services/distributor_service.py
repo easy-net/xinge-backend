@@ -573,6 +573,8 @@ class DistributorService:
                     "quota_total": profile.quota_total,
                     "quota_used": profile.quota_used,
                     "quota_remaining": max(profile.quota_total - profile.quota_used, 0),
+                    "unsettled_commission": profile.unsettled_commission,
+                    "withdrawable_amount": max(profile.unsettled_commission, 0),
                     "created_at": profile.created_at.isoformat() + "Z",
                 }
                 for profile, distributor_user in items
@@ -738,6 +740,45 @@ class DistributorService:
             "parent_distributor_id": None,
             "distributor_level": child_profile.distributor_level,
             "status": "unassigned",
+        }
+
+    def admin_update_distributor(self, *, user_id: int, distributor_level: str = "", unsettled_commission: int = 0):
+        user = self.user_repository.get_by_id(user_id)
+        if user is None:
+            raise NotFoundError(message="user not found")
+        profile = self.repository.get_profile_for_user(user_id=user.id)
+        if profile is None:
+            raise NotFoundError(message="distributor profile not found")
+
+        target_level = (distributor_level or profile.distributor_level).strip().lower()
+        if target_level not in {"strategic", "city", "campus"}:
+            raise ValidationError(message="invalid distributor level")
+
+        if unsettled_commission < 0:
+            raise ValidationError(message="withdrawable amount cannot be negative")
+
+        direct_downlines = self.repository.count_direct_downlines(parent_distributor_id=user.id)
+        if target_level == "campus" and direct_downlines > 0:
+            raise ValidationError(message="campus distributor cannot keep existing downlines")
+
+        parent_profile = self.repository.get_profile_for_user(user_id=profile.parent_distributor_id) if profile.parent_distributor_id else None
+        parent_level = getattr(parent_profile, "distributor_level", "admin" if user.role == "admin" else "")
+        if parent_profile is not None:
+            self._validate_downline_level(parent_level=parent_level, child_level=target_level)
+
+        previous_level = profile.distributor_level
+        previous_unsettled_commission = profile.unsettled_commission
+        profile.distributor_level = target_level
+        profile.unsettled_commission = unsettled_commission
+        self.db.commit()
+        return {
+            "user_id": user.id,
+            "distributor_level": profile.distributor_level,
+            "previous_distributor_level": previous_level,
+            "unsettled_commission": profile.unsettled_commission,
+            "withdrawable_amount": max(profile.unsettled_commission, 0),
+            "previous_unsettled_commission": previous_unsettled_commission,
+            "status": "updated",
         }
 
     def _require_distributor(self, user):

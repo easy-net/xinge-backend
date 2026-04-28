@@ -18,10 +18,15 @@ if [ -f ".env" ]; then
   set +a
 fi
 
+CLI_PORT="${1:-}"
 PORT="${PORT:-80}"
 HOST="${HOST:-0.0.0.0}"
 SSL_CERTFILE="${SSL_CERTFILE:-}"
 SSL_KEYFILE="${SSL_KEYFILE:-}"
+
+if [ -n "$CLI_PORT" ]; then
+  PORT="$CLI_PORT"
+fi
 
 if [ -n "$SSL_CERTFILE" ] || [ -n "$SSL_KEYFILE" ]; then
   if [ -z "$SSL_CERTFILE" ] || [ -z "$SSL_KEYFILE" ]; then
