@@ -38,7 +38,6 @@ WORKDIR /app
 
 COPY pyproject.toml setup.py README.md /app/
 COPY app /app/app
-COPY certs /app/certs
 COPY .env.example /app/.env.example
 COPY scripts /app/scripts
 COPY static /app/static
