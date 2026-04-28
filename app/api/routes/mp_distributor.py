@@ -3,7 +3,7 @@ import json
 from fastapi import APIRouter, Body, Depends, Request
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db_session
+from app.api.deps import get_current_user, get_db_session, get_wechat_pay_client
 from app.api.schemas.mp_distributor import (
     MPAllocateQuotaReq,
     MPDistributorApplyReq,
@@ -17,6 +17,10 @@ from app.services.distributor_service import DistributorService
 router = APIRouter(tags=["mp/distributor"])
 
 
+def _distributor_service(request: Request, db: Session) -> DistributorService:
+    return DistributorService(db, get_wechat_pay_client(request), request.app.state.settings)
+
+
 @router.post("/mp/distributor/apply")
 def distributor_apply(
     request: Request,
@@ -25,7 +29,7 @@ def distributor_apply(
     db: Session = Depends(get_db_session),
 ):
     user, _ = current
-    data = DistributorService(db, request.app.state.wechat_pay_client, request.app.state.settings).apply(user=user, payload=body.model_dump())
+    data = _distributor_service(request, db).apply(user=user, payload=body.model_dump())
     return mp_response(data=data, user_info={"open_id": user.openid, "user_id": user.id})
 
 
@@ -38,7 +42,7 @@ def distributor_me(
 ):
     del body
     user, _ = current
-    data = DistributorService(db, request.app.state.wechat_pay_client, request.app.state.settings).me(user=user)
+    data = _distributor_service(request, db).me(user=user)
     return mp_response(data=data, user_info={"open_id": user.openid, "user_id": user.id})
 
 
@@ -51,7 +55,7 @@ def distributor_application_status(
 ):
     del body
     user, _ = current
-    data = DistributorService(db, request.app.state.wechat_pay_client, request.app.state.settings).application_status(user=user)
+    data = _distributor_service(request, db).application_status(user=user)
     return mp_response(data=data, user_info={"open_id": user.openid, "user_id": user.id})
 
 
@@ -63,7 +67,7 @@ def distributor_withdrawals(
     db: Session = Depends(get_db_session),
 ):
     user, _ = current
-    data = DistributorService(db, request.app.state.wechat_pay_client, request.app.state.settings).list_withdrawals(user=user, page=body.page, page_size=body.page_size)
+    data = _distributor_service(request, db).list_withdrawals(user=user, page=body.page, page_size=body.page_size)
     return mp_response(data=data, user_info={"open_id": user.openid, "user_id": user.id})
 
 
@@ -75,7 +79,7 @@ def distributor_withdraw(
     db: Session = Depends(get_db_session),
 ):
     user, _ = current
-    data = DistributorService(db, request.app.state.wechat_pay_client, request.app.state.settings).create_withdrawal(user=user, amount=body.amount)
+    data = _distributor_service(request, db).create_withdrawal(user=user, amount=body.amount)
     return mp_response(data=data, user_info={"open_id": user.openid, "user_id": user.id})
 
 
@@ -87,7 +91,7 @@ def distributor_downlines(
     db: Session = Depends(get_db_session),
 ):
     user, _ = current
-    data = DistributorService(db, request.app.state.wechat_pay_client, request.app.state.settings).list_downlines(
+    data = _distributor_service(request, db).list_downlines(
         user=user,
         page=body.page,
         page_size=body.page_size,
@@ -104,7 +108,7 @@ def distributor_allocate_quota(
     db: Session = Depends(get_db_session),
 ):
     user, _ = current
-    data = DistributorService(db, request.app.state.wechat_pay_client, request.app.state.settings).allocate_quota(
+    data = _distributor_service(request, db).allocate_quota(
         user=user,
         downline_user_id=body.downline_user_id,
         amount=body.amount,
@@ -120,7 +124,7 @@ def distributor_quota_records(
     db: Session = Depends(get_db_session),
 ):
     user, _ = current
-    data = DistributorService(db, request.app.state.wechat_pay_client, request.app.state.settings).list_quota_records(user=user, page=body.page, page_size=body.page_size)
+    data = _distributor_service(request, db).list_quota_records(user=user, page=body.page, page_size=body.page_size)
     return mp_response(data=data, user_info={"open_id": user.openid, "user_id": user.id})
 
 
@@ -141,7 +145,7 @@ async def wechat_transfer_notify(
         payload = {}
     
     # 如果是微信支付 V3 回调，验证签名
-    wechat_pay_client = request.app.state.wechat_pay_client
+    wechat_pay_client = get_wechat_pay_client(request)
     if payload.get("resource") and wechat_pay_client:
         try:
             payload["_headers"] = dict(request.headers)
