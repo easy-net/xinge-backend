@@ -94,6 +94,15 @@ class DistributorService:
         receiver_masked = self._mask_wechat_account(user)
         auto_approve_threshold = getattr(self.settings, "distributor_withdraw_auto_approve_fen", 10000) if self.settings else 10000
         is_auto_transfer = amount < auto_approve_threshold
+        logging.getLogger(__name__).info(
+            "distributor.withdraw.create_start user_id=%s openid=%s amount=%s withdrawable_before=%s auto_transfer=%s threshold=%s",
+            user.id,
+            user.openid,
+            amount,
+            profile.unsettled_commission,
+            is_auto_transfer,
+            auto_approve_threshold,
+        )
         
         # 先扣除余额，确保并发安全
         profile.unsettled_commission = max(profile.unsettled_commission - amount, 0)
@@ -128,6 +137,15 @@ class DistributorService:
                 transfer_result = None
         
         self.db.commit()
+        logging.getLogger(__name__).info(
+            "distributor.withdraw.create_done withdraw_id=%s user_id=%s status=%s amount=%s withdrawable_after=%s transfer_bill_no=%s",
+            withdraw.withdraw_id,
+            user.id,
+            withdraw.status,
+            withdraw.amount,
+            profile.unsettled_commission,
+            getattr(transfer_result, "transfer_bill_no", ""),
+        )
         return {
             "withdraw_id": withdraw.withdraw_id,
             "amount": withdraw.amount,
@@ -403,9 +421,24 @@ class DistributorService:
         withdrawal = self._require_reviewable_withdrawal(withdraw_id)
         user = withdrawal.user
         profile = self._require_distributor(user)
+        logging.getLogger(__name__).info(
+            "distributor.withdraw.admin_approve_start withdraw_id=%s user_id=%s amount=%s current_status=%s balance_before=%s",
+            withdrawal.withdraw_id,
+            user.id,
+            withdrawal.amount,
+            withdrawal.status,
+            profile.unsettled_commission,
+        )
         if self._should_bypass_admin_withdraw_approval():
             transfer_result = self._approve_withdrawal_without_validation(withdrawal=withdrawal, profile=profile)
             self.db.commit()
+            logging.getLogger(__name__).info(
+                "distributor.withdraw.admin_approve_bypassed withdraw_id=%s status=%s transfer_state=%s transfer_bill_no=%s",
+                withdrawal.withdraw_id,
+                withdrawal.status,
+                transfer_result.state,
+                transfer_result.transfer_bill_no,
+            )
             return {
                 "withdraw_id": withdrawal.withdraw_id,
                 "status": withdrawal.status,
@@ -426,8 +459,23 @@ class DistributorService:
                 fail_reason=str(error),
             )
             self.db.commit()
+            logging.getLogger(__name__).exception(
+                "distributor.withdraw.admin_approve_failed withdraw_id=%s user_id=%s amount=%s restored_balance=%s",
+                withdrawal.withdraw_id,
+                user.id,
+                withdrawal.amount,
+                profile.unsettled_commission,
+            )
             raise
         self.db.commit()
+        logging.getLogger(__name__).info(
+            "distributor.withdraw.admin_approve_done withdraw_id=%s status=%s transfer_state=%s transfer_bill_no=%s completed_at=%s",
+            withdrawal.withdraw_id,
+            withdrawal.status,
+            transfer_result.state,
+            transfer_result.transfer_bill_no,
+            withdrawal.completed_at.isoformat() + "Z" if withdrawal.completed_at else None,
+        )
         return {
             "withdraw_id": withdrawal.withdraw_id,
             "status": withdrawal.status,
@@ -445,11 +493,80 @@ class DistributorService:
             profile.unsettled_commission += withdrawal.amount
         self.repository.update_withdrawal_status(withdrawal=withdrawal, status="rejected", completed_at=datetime.utcnow())
         self.db.commit()
+        logging.getLogger(__name__).info(
+            "distributor.withdraw.admin_reject withdraw_id=%s user_id=%s amount=%s restored_balance=%s",
+            withdrawal.withdraw_id,
+            withdrawal.user_id,
+            withdrawal.amount,
+            getattr(profile, "unsettled_commission", None),
+        )
         return {
             "withdraw_id": withdrawal.withdraw_id,
             "status": withdrawal.status,
             "amount": withdrawal.amount,
         }
+
+    def admin_get_withdrawal_debug(self, *, withdraw_id: str):
+        withdrawal = self.repository.get_withdrawal_by_withdraw_id(withdraw_id=withdraw_id)
+        if withdrawal is None:
+            raise NotFoundError(message="withdrawal not found")
+
+        user = withdrawal.user
+        profile = self.repository.get_profile_for_user(user_id=withdrawal.user_id)
+        callback_url = ""
+        if self.settings:
+            callback_url = getattr(self.settings, "wechat_transfer_notify_url", "") or getattr(self.settings, "wechat_notify_url", "")
+
+        expected_out_bill_no = self._build_wechat_transfer_bill_no(withdrawal.withdraw_id)
+        return {
+            "withdraw_id": withdrawal.withdraw_id,
+            "user_id": withdrawal.user_id,
+            "nickname": getattr(user, "nickname", "") or "用户{}".format(withdrawal.user_id),
+            "openid": getattr(user, "openid", ""),
+            "status": withdrawal.status,
+            "amount": withdrawal.amount,
+            "amount_yuan": "{:.2f}".format(withdrawal.amount / 100.0),
+            "receiver_name": withdrawal.account_name,
+            "receiver_masked": withdrawal.bank_account_masked,
+            "channel_name": withdrawal.bank_name or "微信零钱",
+            "created_at": withdrawal.created_at.isoformat() + "Z",
+            "completed_at": withdrawal.completed_at.isoformat() + "Z" if withdrawal.completed_at else None,
+            "transfer_bill_no": withdrawal.transfer_bill_no or "",
+            "fail_reason": withdrawal.fail_reason or "",
+            "withdrawable_balance_now": getattr(profile, "unsettled_commission", 0),
+            "total_withdrawn_amount": getattr(profile, "total_withdrawn_amount", 0),
+            "expected_out_bill_no": expected_out_bill_no,
+            "expected_callback_url": callback_url,
+            "diagnostics": {
+                "has_openid": bool(getattr(user, "openid", "")),
+                "has_transfer_bill_no": bool(withdrawal.transfer_bill_no),
+                "waiting_callback": withdrawal.status == "processing",
+                "is_terminal_status": withdrawal.status in {"paid", "rejected", "failed"},
+                "is_manual_review_status": withdrawal.status == "pending_review",
+                "wechat_pay_client_configured": bool(self.wechat_pay_client),
+                "callback_url_configured": bool(callback_url),
+            },
+        }
+
+    def admin_debug_transfer_callback(self, *, withdraw_id: str, state: str, fail_reason: str = ""):
+        withdrawal = self.repository.get_withdrawal_by_withdraw_id(withdraw_id=withdraw_id)
+        if withdrawal is None:
+            raise NotFoundError(message="withdrawal not found")
+        simulated_transfer_bill_no = withdrawal.transfer_bill_no or "debug-transfer-{}".format(self._build_wechat_transfer_bill_no(withdraw_id))
+        result = self.handle_transfer_callback(
+            transfer_bill_no=simulated_transfer_bill_no,
+            state=state,
+            out_bill_no=self._build_wechat_transfer_bill_no(withdraw_id),
+            fail_reason=fail_reason,
+        )
+        logging.getLogger(__name__).info(
+            "distributor.withdraw.debug_callback withdraw_id=%s simulated_state=%s transfer_bill_no=%s result_status=%s",
+            withdraw_id,
+            state,
+            simulated_transfer_bill_no,
+            result.get("status"),
+        )
+        return result
 
     def admin_seed_quota_records(self, *, user_id: int):
         user = self.user_repository.get_by_id(user_id)

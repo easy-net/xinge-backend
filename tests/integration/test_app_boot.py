@@ -40,6 +40,12 @@ def test_static_admin_distributor_management_page_is_accessible(client):
     assert "分销商管理台" in response.text
 
 
+def test_static_admin_withdrawal_debug_page_is_accessible(client):
+    response = client.get("/static/admin-withdrawal-debug.html")
+    assert response.status_code == 200
+    assert "提现调试台" in response.text
+
+
 def test_static_admin_dashboard_page_is_accessible(client):
     response = client.get("/static/admin-dashboard.html")
     assert response.status_code == 200

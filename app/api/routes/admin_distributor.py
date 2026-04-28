@@ -175,6 +175,18 @@ def admin_list_distributor_withdrawals(
     return public_response(data)
 
 
+@router.get("/admin/distributor/withdrawals/{withdraw_id}")
+def admin_get_distributor_withdrawal_debug(
+    request: Request,
+    withdraw_id: str,
+    db: Session = Depends(get_db_session),
+):
+    data = DistributorService(db, request.app.state.wechat_pay_client, request.app.state.settings).admin_get_withdrawal_debug(
+        withdraw_id=withdraw_id
+    )
+    return public_response(data)
+
+
 @router.post("/admin/distributor/withdrawals/{withdraw_id}/approve")
 def admin_approve_distributor_withdrawal(
     request: Request,
@@ -183,6 +195,21 @@ def admin_approve_distributor_withdrawal(
 ):
     data = DistributorService(db, request.app.state.wechat_pay_client, request.app.state.settings).admin_approve_withdrawal(
         withdraw_id=withdraw_id
+    )
+    return public_response(data)
+
+
+@router.post("/admin/distributor/withdrawals/{withdraw_id}/debug-callback")
+def admin_debug_distributor_withdrawal_callback(
+    request: Request,
+    withdraw_id: str,
+    body: dict = Body(default_factory=dict),
+    db: Session = Depends(get_db_session),
+):
+    data = DistributorService(db, request.app.state.wechat_pay_client, request.app.state.settings).admin_debug_transfer_callback(
+        withdraw_id=withdraw_id,
+        state=str(body.get("state", "") or ""),
+        fail_reason=str(body.get("fail_reason", "") or ""),
     )
     return public_response(data)
 
