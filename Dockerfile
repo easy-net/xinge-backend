@@ -5,7 +5,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
     REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt \
-    APP_ENV=development \
+    APP_ENV=production \
+    DATABASE_URL=mysql+pymysql://admin:Xinge2026@sh-cynosdbmysql-grp-k7w2orm8.sql.tencentcdb.com:28550/xinge_backend?charset=utf8mb4 \
     ENCRYPTION_KEY=replace-with-a-32-char-or-longer-secret-key \
     ALLOW_EPHEMERAL_DB=false \
     HOST=0.0.0.0 \
