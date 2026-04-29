@@ -7,6 +7,7 @@ from app.api.deps import get_current_user, get_db_session, get_wechat_pay_client
 from app.api.schemas.mp_distributor import (
     MPAllocateQuotaReq,
     MPDistributorApplyReq,
+    MPDistributorWithdrawStatusReq,
     MPDistributorWithdrawReq,
     MPDownlinesReq,
     MPPageReq,
@@ -80,6 +81,18 @@ def distributor_withdraw(
 ):
     user, _ = current
     data = _distributor_service(request, db).create_withdrawal(user=user, amount=body.amount)
+    return mp_response(data=data, user_info={"open_id": user.openid, "user_id": user.id})
+
+
+@router.post("/mp/distributor/withdrawals/status")
+def distributor_withdrawal_status(
+    request: Request,
+    body: MPDistributorWithdrawStatusReq,
+    current=Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    user, _ = current
+    data = _distributor_service(request, db).refresh_withdrawal_status(user=user, withdraw_id=body.withdraw_id)
     return mp_response(data=data, user_info={"open_id": user.openid, "user_id": user.id})
 
 

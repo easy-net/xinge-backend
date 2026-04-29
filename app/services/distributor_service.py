@@ -170,6 +170,7 @@ class DistributorService:
             "created_at": withdraw.created_at.isoformat() + "Z",
             "withdrawable_amount_after": profile.unsettled_commission,
             "transfer_bill_no": getattr(transfer_result, "transfer_bill_no", ""),
+            "package_info": getattr(transfer_result, "package_info", ""),
             **self._build_withdrawal_status_meta(withdraw, transfer_state=getattr(transfer_result, "state", "")),
         }
 
@@ -186,6 +187,72 @@ class DistributorService:
             "page_total": (total + page_size - 1) // page_size if page_size else 0,
             "total": total,
         }
+
+    def refresh_withdrawal_status(self, *, user, withdraw_id: str):
+        self._require_distributor(user)
+        withdrawal = self.repository.get_withdrawal_by_withdraw_id(withdraw_id=withdraw_id)
+        if withdrawal is None or withdrawal.user_id != user.id:
+            raise NotFoundError(message="withdrawal not found")
+
+        transfer_result = None
+        if withdrawal.status == "processing" and self.wechat_pay_client:
+            out_bill_no = self._build_wechat_transfer_bill_no(withdrawal.withdraw_id)
+            transfer_result = self.wechat_pay_client.query_transfer_bill(out_bill_no=out_bill_no)
+            transfer_state = (transfer_result.state or "").upper()
+            profile = self.repository.get_profile_for_user(user_id=withdrawal.user_id)
+
+            if transfer_state == "SUCCESS":
+                if withdrawal.status != "paid":
+                    completed_at = datetime.utcnow()
+                    self.repository.update_withdrawal_status(
+                        withdrawal=withdrawal,
+                        status="paid",
+                        completed_at=completed_at,
+                        transfer_bill_no=transfer_result.transfer_bill_no,
+                        fail_reason="",
+                    )
+                    if profile:
+                        profile.total_withdrawn_amount += withdrawal.amount
+                    self._record_withdrawal_event(
+                        withdraw_id=withdrawal.withdraw_id,
+                        event_type="query_success",
+                        status="paid",
+                        detail="transfer_bill_no={}".format(transfer_result.transfer_bill_no),
+                        operator="wechat-query",
+                    )
+                    self.db.commit()
+            elif transfer_state in ("ACCEPTED", "PROCESSING", "WAIT_PAY", "WAIT_USER_CONFIRM"):
+                self.repository.update_withdrawal_status(
+                    withdrawal=withdrawal,
+                    status="processing",
+                    completed_at=None,
+                    transfer_bill_no=transfer_result.transfer_bill_no,
+                    fail_reason="",
+                )
+                self.db.commit()
+            elif transfer_state:
+                if profile:
+                    profile.unsettled_commission += withdrawal.amount
+                self.repository.update_withdrawal_status(
+                    withdrawal=withdrawal,
+                    status="failed",
+                    completed_at=datetime.utcnow(),
+                    transfer_bill_no=transfer_result.transfer_bill_no,
+                    fail_reason=transfer_result.fail_reason or transfer_state,
+                )
+                self._record_withdrawal_event(
+                    withdraw_id=withdrawal.withdraw_id,
+                    event_type="query_failed",
+                    status="failed",
+                    detail=transfer_result.fail_reason or transfer_state,
+                    operator="wechat-query",
+                )
+                self.db.commit()
+
+        serialized = self._serialize_withdrawal_item(withdrawal, transfer_result=transfer_result)
+        if transfer_result:
+            serialized["package_info"] = transfer_result.package_info or ""
+        return serialized
 
     def list_downlines(self, *, user, page: int, page_size: int, level=None):
         self._require_distributor(user)
@@ -1057,7 +1124,7 @@ class DistributorService:
             return "{}***{}".format(user.openid[:3], user.openid[-4:])
         return "wx-user-{}".format(user.id)
 
-    def _serialize_withdrawal_item(self, withdrawal):
+    def _serialize_withdrawal_item(self, withdrawal, transfer_result=None):
         return {
             "withdraw_id": withdrawal.withdraw_id,
             "amount": withdrawal.amount,
@@ -1071,7 +1138,11 @@ class DistributorService:
             "fail_reason": withdrawal.fail_reason or "",
             "status": withdrawal.status,
             "transfer_bill_no": withdrawal.transfer_bill_no or "",
-            **self._build_withdrawal_status_meta(withdrawal),
+            "package_info": getattr(transfer_result, "package_info", "") if transfer_result else "",
+            **self._build_withdrawal_status_meta(
+                withdrawal,
+                transfer_state=getattr(transfer_result, "state", "") if transfer_result else "",
+            ),
         }
 
     def _build_withdrawal_status_meta(self, withdrawal, transfer_state: str = ""):
@@ -1100,6 +1171,7 @@ class DistributorService:
             "transfer_state": normalized_transfer_state,
             "status_hint": status_hint,
             "action_required": action_required,
+            "mch_id": getattr(self.settings, "wechat_mch_id", "") if self.settings else "",
         }
 
     def _infer_transfer_state_from_event(self, withdraw_id: str) -> str:

@@ -40,6 +40,7 @@ class TransferResult:
     transfer_bill_no: str
     state: str
     package_info: str = ""
+    fail_reason: str = ""
 
 
 @dataclass
@@ -59,6 +60,9 @@ class WechatPayClient:
     def transfer_to_balance(self, *, out_bill_no: str, amount: int, openid: str, user_name: str = "") -> TransferResult:
         raise NotImplementedError
 
+    def query_transfer_bill(self, *, out_bill_no: str) -> TransferResult:
+        raise NotImplementedError
+
     def query_balance(self, *, account_type: str) -> BalanceResult:
         raise NotImplementedError
 
@@ -66,6 +70,7 @@ class WechatPayClient:
 class RealWechatPayClient(WechatPayClient):
     PAY_JSAPI_URL = "https://api.mch.weixin.qq.com/v3/pay/transactions/jsapi"
     TRANSFER_TO_BALANCE_URL = "https://api.mch.weixin.qq.com/v3/fund-app/mch-transfer/transfer-bills"
+    QUERY_TRANSFER_BILL_URL = "https://api.mch.weixin.qq.com/v3/fund-app/mch-transfer/transfer-bills/out-bill-no/{out_bill_no}"
     BALANCE_URL_TEMPLATE = "https://api.mch.weixin.qq.com/v3/merchant/fund/balance/{account_type}"
 
     def __init__(self, settings):
@@ -240,6 +245,39 @@ class RealWechatPayClient(WechatPayClient):
             transfer_bill_no=data.get("transfer_bill_no") or "",
             state=(data.get("state") or "ACCEPTED").upper(),
             package_info=data.get("package_info") or "",
+            fail_reason=data.get("fail_reason") or "",
+        )
+
+    def query_transfer_bill(self, *, out_bill_no: str) -> TransferResult:
+        logger = logging.getLogger(__name__)
+        url_path = "/v3/fund-app/mch-transfer/transfer-bills/out-bill-no/{}".format(out_bill_no)
+        authorization = self._build_authorization("GET", url_path, "")
+        response = requests.get(
+            self.QUERY_TRANSFER_BILL_URL.format(out_bill_no=out_bill_no),
+            timeout=15,
+            headers={
+                "Authorization": authorization,
+                "Accept": "application/json",
+                "Content-Type": "application/json; charset=utf-8",
+            },
+        )
+        logger.info(
+            "wechat.transfer.query out_bill_no=%s status_code=%s body=%s",
+            out_bill_no,
+            response.status_code,
+            response.text[:1000],
+        )
+        try:
+            response.raise_for_status()
+        except requests.HTTPError as exc:
+            raise ValidationError(message=self._build_transfer_error_message(response)) from exc
+        data = response.json()
+        return TransferResult(
+            out_bill_no=data.get("out_bill_no") or out_bill_no,
+            transfer_bill_no=data.get("transfer_bill_no") or "",
+            state=(data.get("state") or "").upper(),
+            package_info=data.get("package_info") or "",
+            fail_reason=data.get("fail_reason") or "",
         )
 
     def query_balance(self, *, account_type: str) -> BalanceResult:
@@ -398,6 +436,14 @@ class NullWechatPayClient(WechatPayClient):
         )
 
     def transfer_to_balance(self, *, out_bill_no: str, amount: int, openid: str, user_name: str = "") -> TransferResult:
+        return TransferResult(
+            out_bill_no=out_bill_no,
+            transfer_bill_no="mock-transfer-{}".format(out_bill_no),
+            state="SUCCESS",
+            package_info="mock",
+        )
+
+    def query_transfer_bill(self, *, out_bill_no: str) -> TransferResult:
         return TransferResult(
             out_bill_no=out_bill_no,
             transfer_bill_no="mock-transfer-{}".format(out_bill_no),

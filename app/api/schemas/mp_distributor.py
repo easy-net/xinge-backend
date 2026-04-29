@@ -28,3 +28,7 @@ class MPAllocateQuotaReq(BaseModel):
 
 class MPDistributorWithdrawReq(BaseModel):
     amount: int
+
+
+class MPDistributorWithdrawStatusReq(BaseModel):
+    withdraw_id: str
