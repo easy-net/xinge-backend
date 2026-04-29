@@ -183,6 +183,15 @@ class DistributorRepository:
         )
         return self.db.execute(stmt).scalars().all()
 
+    def get_latest_withdrawal_event(self, *, withdraw_id: str):
+        stmt = (
+            select(DistributorWithdrawalEvent)
+            .where(DistributorWithdrawalEvent.withdraw_id == withdraw_id)
+            .order_by(DistributorWithdrawalEvent.created_at.desc(), DistributorWithdrawalEvent.id.desc())
+            .limit(1)
+        )
+        return self.db.execute(stmt).scalar_one_or_none()
+
     def count_direct_downlines(self, *, parent_distributor_id: int, distributor_level: Optional[str] = None) -> int:
         stmt = select(func.count(DistributorProfile.id)).where(DistributorProfile.parent_distributor_id == parent_distributor_id)
         if distributor_level is not None:

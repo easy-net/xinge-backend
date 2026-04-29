@@ -170,6 +170,7 @@ class DistributorService:
             "created_at": withdraw.created_at.isoformat() + "Z",
             "withdrawable_amount_after": profile.unsettled_commission,
             "transfer_bill_no": getattr(transfer_result, "transfer_bill_no", ""),
+            **self._build_withdrawal_status_meta(withdraw, transfer_state=getattr(transfer_result, "state", "")),
         }
 
     def list_withdrawals(self, *, user, page: int, page_size: int):
@@ -177,20 +178,7 @@ class DistributorService:
         items, total = self.repository.list_withdrawals_for_user(user_id=user.id, page=page, page_size=page_size)
         return {
             "list": [
-                {
-                    "amount": item.amount,
-                    "bank_account_masked": item.bank_account_masked,
-                    "bank_name": item.bank_name,
-                    "channel_name": item.bank_name or "微信零钱",
-                    "receiver_name": item.account_name,
-                    "receiver_masked": item.bank_account_masked,
-                    "completed_at": item.completed_at.isoformat() + "Z" if item.completed_at else None,
-                    "created_at": item.created_at.isoformat() + "Z",
-                    "fail_reason": item.fail_reason or "",
-                    "status": item.status,
-                    "transfer_bill_no": item.transfer_bill_no or "",
-                    "withdraw_id": item.withdraw_id,
-                }
+                self._serialize_withdrawal_item(item)
                 for item in items
             ],
             "page": page,
@@ -409,19 +397,10 @@ class DistributorService:
         return {
             "list": [
                 {
-                    "withdraw_id": withdrawal.withdraw_id,
                     "user_id": withdrawal.user_id,
                     "nickname": user.nickname or "用户{}".format(user.id),
                     "avatar_url": user.avatar_url,
-                    "amount": withdrawal.amount,
-                    "status": withdrawal.status,
-                    "channel_name": withdrawal.bank_name or "微信零钱",
-                    "receiver_name": withdrawal.account_name,
-                    "receiver_masked": withdrawal.bank_account_masked,
-                    "created_at": withdrawal.created_at.isoformat() + "Z",
-                    "completed_at": withdrawal.completed_at.isoformat() + "Z" if withdrawal.completed_at else None,
-                    "fail_reason": withdrawal.fail_reason or "",
-                    "transfer_bill_no": withdrawal.transfer_bill_no or "",
+                    **self._serialize_withdrawal_item(withdrawal),
                 }
                 for withdrawal, user in items
             ],
@@ -461,6 +440,7 @@ class DistributorService:
                 "transfer_bill_no": transfer_result.transfer_bill_no,
                 "package_info": transfer_result.package_info,
                 "completed_at": withdrawal.completed_at.isoformat() + "Z" if withdrawal.completed_at else None,
+                **self._build_withdrawal_status_meta(withdrawal, transfer_state=transfer_result.state),
             }
         try:
             transfer_result = self._process_withdraw_transfer(withdrawal=withdrawal, user=user, profile=profile)
@@ -505,6 +485,7 @@ class DistributorService:
             "transfer_bill_no": transfer_result.transfer_bill_no,
             "package_info": transfer_result.package_info,
             "completed_at": withdrawal.completed_at.isoformat() + "Z" if withdrawal.completed_at else None,
+            **self._build_withdrawal_status_meta(withdrawal, transfer_state=transfer_result.state),
         }
 
     def admin_reject_withdrawal(self, *, withdraw_id: str):
@@ -1075,6 +1056,61 @@ class DistributorService:
         if user.openid:
             return "{}***{}".format(user.openid[:3], user.openid[-4:])
         return "wx-user-{}".format(user.id)
+
+    def _serialize_withdrawal_item(self, withdrawal):
+        return {
+            "withdraw_id": withdrawal.withdraw_id,
+            "amount": withdrawal.amount,
+            "bank_account_masked": withdrawal.bank_account_masked,
+            "bank_name": withdrawal.bank_name,
+            "channel_name": withdrawal.bank_name or "微信零钱",
+            "receiver_name": withdrawal.account_name,
+            "receiver_masked": withdrawal.bank_account_masked,
+            "completed_at": withdrawal.completed_at.isoformat() + "Z" if withdrawal.completed_at else None,
+            "created_at": withdrawal.created_at.isoformat() + "Z",
+            "fail_reason": withdrawal.fail_reason or "",
+            "status": withdrawal.status,
+            "transfer_bill_no": withdrawal.transfer_bill_no or "",
+            **self._build_withdrawal_status_meta(withdrawal),
+        }
+
+    def _build_withdrawal_status_meta(self, withdrawal, transfer_state: str = ""):
+        normalized_transfer_state = (transfer_state or "").upper() or self._infer_transfer_state_from_event(withdrawal.withdraw_id)
+        status_hint = ""
+        action_required = ""
+        if withdrawal.status == "processing":
+            if normalized_transfer_state == "WAIT_USER_CONFIRM":
+                status_hint = "微信提现已发起，请在微信支付通知中确认收款"
+                action_required = "wechat_confirm_receive"
+            elif normalized_transfer_state == "WAIT_PAY":
+                status_hint = "微信提现已创建，等待微信继续处理"
+                action_required = "wait_wechat_process"
+            else:
+                status_hint = "微信提现处理中，请稍后刷新查看状态"
+                action_required = "wait_wechat_callback"
+        elif withdrawal.status == "pending_review":
+            status_hint = "提现申请已提交，等待管理员审核"
+        elif withdrawal.status == "paid":
+            status_hint = "提现已到账微信零钱"
+        elif withdrawal.status == "rejected":
+            status_hint = "提现已驳回，金额已退回可提现余额"
+        elif withdrawal.status == "failed":
+            status_hint = withdrawal.fail_reason or "微信提现失败，金额已退回可提现余额"
+        return {
+            "transfer_state": normalized_transfer_state,
+            "status_hint": status_hint,
+            "action_required": action_required,
+        }
+
+    def _infer_transfer_state_from_event(self, withdraw_id: str) -> str:
+        latest_event = self.repository.get_latest_withdrawal_event(withdraw_id=withdraw_id)
+        if latest_event is None:
+            return ""
+        detail = latest_event.detail or ""
+        matched = re.search(r"state=([A-Z_]+)", detail)
+        if matched:
+            return matched.group(1).upper()
+        return ""
 
     def handle_transfer_callback(self, *, transfer_bill_no: str, state: str, out_bill_no: str = "", fail_reason: str = ""):
         """处理微信支付转账异步回调
