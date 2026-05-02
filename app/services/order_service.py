@@ -1,5 +1,6 @@
 import logging
 import secrets
+from datetime import datetime
 
 from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.repositories.order_repository import OrderRepository
@@ -118,6 +119,28 @@ class OrderService:
                 "paySign": payment.paySign,
             },
             "report_id": order.report_id,
+        }
+
+    def confirm_paid(self, *, user, order_id: str, paid_at: str = ""):
+        order = self.order_repository.get_for_user(order_id=order_id, user_id=user.id)
+        if order is None:
+            raise NotFoundError(message="order not found")
+
+        if order.status != "paid":
+            normalized_paid_at = paid_at or datetime.utcnow().isoformat() + "Z"
+            self.order_repository.mark_paid(order=order, paid_at=normalized_paid_at)
+            report = self.report_repository.get_for_user(report_id=order.report_id, user_id=user.id)
+            if report is None:
+                raise NotFoundError(message="report not found")
+            self.report_repository.mark_generating(report=report)
+            self.db.commit()
+
+        return {
+            "amount": order.amount,
+            "order_id": order.order_id,
+            "paid_at": order.paid_at,
+            "report_id": order.report_id,
+            "status": order.status,
         }
 
     def _serialize_order_list_item(self, order):

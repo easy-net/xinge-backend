@@ -21,6 +21,11 @@ class MPOrderPayReq(BaseModel):
     order_id: str
 
 
+class MPOrderConfirmReq(BaseModel):
+    order_id: str
+    paid_at: Optional[str] = None
+
+
 class MPWechatNotifyReq(BaseModel):
     notify_id: str
     order_id: str
