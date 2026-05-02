@@ -85,3 +85,51 @@ class OrderService:
             "report_id": order.report_id,
             "status": order.status,
         }
+
+    def list_orders(self, *, user, page: int, page_size: int):
+        orders, total = self.order_repository.list_for_user(user_id=user.id, page=page, page_size=page_size)
+        return {
+            "list": [self._serialize_order_list_item(order) for order in orders],
+            "page": page,
+            "page_size": page_size,
+            "page_total": (total + page_size - 1) // page_size if page_size else 0,
+            "total": total,
+        }
+
+    def repay_order(self, *, user, order_id: str):
+        order = self.order_repository.get_for_user(order_id=order_id, user_id=user.id)
+        if order is None:
+            raise NotFoundError(message="order not found")
+        if order.status != "pending":
+            raise ConflictError(message="order is not pending")
+
+        payment = self.wechat_pay_client.create_prepay(order_id=order.order_id, amount=order.amount, openid=user.openid)
+        self.order_repository.update_prepay(order=order, prepay_id=payment.prepay_id)
+        self.db.commit()
+
+        return {
+            "amount": order.amount,
+            "order_id": order.order_id,
+            "payment_params": {
+                "timeStamp": payment.timeStamp,
+                "nonceStr": payment.nonceStr,
+                "package": payment.package,
+                "signType": payment.signType,
+                "paySign": payment.paySign,
+            },
+            "report_id": order.report_id,
+        }
+
+    def _serialize_order_list_item(self, order):
+        report = self.report_repository.get_for_user(report_id=order.report_id, user_id=order.user_id)
+        return {
+            "amount": order.amount,
+            "created_at": order.created_at.isoformat() + "Z",
+            "name": report.name if report else "",
+            "order_id": order.order_id,
+            "paid_at": order.paid_at or None,
+            "report_id": order.report_id,
+            "report_type": report.report_type if report else "preview",
+            "school_name": (report.form_data or {}).get("school_name") if report else "",
+            "status": order.status,
+        }
