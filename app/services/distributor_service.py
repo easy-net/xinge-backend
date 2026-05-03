@@ -1,5 +1,6 @@
 import logging
 import re
+import secrets
 from datetime import datetime
 
 from app.core.errors import ConflictError, ForbiddenError, NotFoundError, ValidationError
@@ -382,6 +383,97 @@ class DistributorService:
             "page_size": page_size,
             "page_total": (total + page_size - 1) // page_size if page_size else 0,
             "total": total,
+        }
+
+    def list_commissions(self, *, user, page: int, page_size: int):
+        self._require_distributor(user)
+        items, total = self.repository.list_commissions_for_user(
+            beneficiary_user_id=user.id,
+            page=page,
+            page_size=page_size,
+        )
+        return {
+            "list": [
+                {
+                    "commission_id": record.commission_id,
+                    "order_id": record.order_id,
+                    "beneficiary_user_id": record.beneficiary_user_id,
+                    "source_user_id": record.source_user_id,
+                    "source_name": source_user.nickname or source_user.phone_masked or "用户{}".format(source_user.id),
+                    "distributor_level": record.distributor_level,
+                    "rate": record.rate_bps / 10000,
+                    "rate_bps": record.rate_bps,
+                    "order_amount": record.order_amount,
+                    "amount": record.amount,
+                    "status": record.status,
+                    "remark": record.remark,
+                    "created_at": record.created_at.isoformat() + "Z",
+                }
+                for record, source_user in items
+            ],
+            "page": page,
+            "page_size": page_size,
+            "page_total": (total + page_size - 1) // page_size if page_size else 0,
+            "total": total,
+        }
+
+    def settle_order_commissions(self, *, buyer_user, order):
+        buyer_profile = self.repository.get_profile_for_user(user_id=buyer_user.id)
+        if buyer_profile is None:
+            return {
+                "commission_records_created": 0,
+                "order_id": order.order_id,
+                "settled": False,
+            }
+
+        rate_bps_map = {
+            "strategic": 1000,
+            "city": 500,
+            "campus": 200,
+        }
+        records_created = 0
+        cursor_user_id = buyer_user.id
+        visited = set()
+
+        while cursor_user_id and cursor_user_id not in visited:
+            visited.add(cursor_user_id)
+            profile = self.repository.get_profile_for_user(user_id=cursor_user_id)
+            if profile is None:
+                break
+
+            level = (profile.distributor_level or "").strip().lower()
+            rate_bps = rate_bps_map.get(level, 0)
+            if rate_bps > 0:
+                existing = self.repository.get_commission_for_beneficiary_order(
+                    beneficiary_user_id=cursor_user_id,
+                    order_id=order.order_id,
+                )
+                if existing is None:
+                    commission_amount = max(int(order.amount * rate_bps / 10000), 0)
+                    if commission_amount > 0:
+                        profile.total_commission += commission_amount
+                        profile.unsettled_commission += commission_amount
+                        profile.total_sales_amount += order.amount
+                        self.repository.create_commission(
+                            commission_id=self._build_commission_id(cursor_user_id),
+                            beneficiary_user_id=cursor_user_id,
+                            source_user_id=buyer_user.id,
+                            order_id=order.order_id,
+                            distributor_level=level,
+                            rate_bps=rate_bps,
+                            order_amount=order.amount,
+                            amount=commission_amount,
+                            status="earned",
+                            remark="订单分账",
+                        )
+                        records_created += 1
+
+            cursor_user_id = profile.parent_distributor_id
+
+        return {
+            "commission_records_created": records_created,
+            "order_id": order.order_id,
+            "settled": records_created > 0,
         }
 
     def admin_list_applications(self, *, page: int, page_size: int, status=None):
@@ -1313,6 +1405,9 @@ class DistributorService:
             "campus": 50,
         }
         return defaults.get(distributor_level, 0)
+
+    def _build_commission_id(self, user_id: int) -> str:
+        return "COM{}{}".format(user_id, secrets.token_hex(8).upper())
 
     def _record_withdrawal_event(self, *, withdraw_id: str, event_type: str, status: str = "", detail: str = "", operator: str = ""):
         self.repository.create_withdrawal_event(

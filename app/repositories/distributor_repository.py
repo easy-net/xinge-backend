@@ -3,7 +3,14 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.db.models.distributor import DistributorApplication, DistributorProfile, DistributorQuotaRecord, DistributorWithdrawal, DistributorWithdrawalEvent
+from app.db.models.distributor import (
+    DistributorApplication,
+    DistributorCommission,
+    DistributorProfile,
+    DistributorQuotaRecord,
+    DistributorWithdrawal,
+    DistributorWithdrawalEvent,
+)
 from app.db.models.user import User
 
 
@@ -253,6 +260,58 @@ class DistributorRepository:
         self.db.add(record)
         self.db.flush()
         return record
+
+    def get_commission_for_beneficiary_order(self, *, beneficiary_user_id: int, order_id: str):
+        stmt = select(DistributorCommission).where(
+            DistributorCommission.beneficiary_user_id == beneficiary_user_id,
+            DistributorCommission.order_id == order_id,
+        )
+        return self.db.execute(stmt).scalar_one_or_none()
+
+    def create_commission(
+        self,
+        *,
+        commission_id: str,
+        beneficiary_user_id: int,
+        source_user_id: int,
+        order_id: str,
+        distributor_level: str,
+        rate_bps: int,
+        order_amount: int,
+        amount: int,
+        status: str = "earned",
+        remark: str = "",
+    ):
+        record = DistributorCommission(
+            commission_id=commission_id,
+            beneficiary_user_id=beneficiary_user_id,
+            source_user_id=source_user_id,
+            order_id=order_id,
+            distributor_level=distributor_level,
+            rate_bps=rate_bps,
+            order_amount=order_amount,
+            amount=amount,
+            status=status,
+            remark=remark,
+        )
+        self.db.add(record)
+        self.db.flush()
+        return record
+
+    def list_commissions_for_user(self, *, beneficiary_user_id: int, page: int, page_size: int):
+        stmt = (
+            select(DistributorCommission, User)
+            .join(User, User.id == DistributorCommission.source_user_id)
+            .where(DistributorCommission.beneficiary_user_id == beneficiary_user_id)
+        )
+        total = self.db.execute(select(func.count()).select_from(stmt.subquery())).scalar_one()
+        items = self.db.execute(
+            stmt
+            .order_by(DistributorCommission.created_at.desc(), DistributorCommission.id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        ).all()
+        return items, total
 
     def list_quota_records_for_user(self, *, user_id: int, page: int, page_size: int):
         stmt = (

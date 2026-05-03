@@ -104,3 +104,26 @@ class DistributorQuotaRecord(Base):
     quota_after: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     remark: Mapped[str] = mapped_column(String(255), default="", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class DistributorCommission(Base):
+    __tablename__ = "distributor_commissions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    commission_id: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    beneficiary_user_id: Mapped[int] = mapped_column(ForeignKey("mp_users.id"), index=True, nullable=False)
+    source_user_id: Mapped[int] = mapped_column(ForeignKey("mp_users.id"), index=True, nullable=False)
+    order_id: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    distributor_level: Mapped[str] = mapped_column(String(32), default="", nullable=False)
+    rate_bps: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    order_amount: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    amount: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), default="earned", nullable=False)
+    remark: Mapped[str] = mapped_column(String(255), default="", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )

@@ -32,3 +32,8 @@ class MPDistributorWithdrawReq(BaseModel):
 
 class MPDistributorWithdrawStatusReq(BaseModel):
     withdraw_id: str
+
+
+class MPDistributorCommissionsReq(BaseModel):
+    page: int = 1
+    page_size: int = 20

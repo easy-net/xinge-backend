@@ -6,6 +6,7 @@ from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.repositories.order_repository import OrderRepository
 from app.repositories.product_config_repository import ProductConfigRepository
 from app.repositories.report_repository import ReportRepository
+from app.services.distributor_service import DistributorService
 
 
 class OrderService:
@@ -133,7 +134,12 @@ class OrderService:
             if report is None:
                 raise NotFoundError(message="report not found")
             self.report_repository.mark_generating(report=report)
-            self.db.commit()
+
+        DistributorService(self.db, self.wechat_pay_client).settle_order_commissions(
+            buyer_user=user,
+            order=order,
+        )
+        self.db.commit()
 
         return {
             "amount": order.amount,

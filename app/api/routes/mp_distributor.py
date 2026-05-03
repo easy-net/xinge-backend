@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, get_db_session, get_wechat_pay_client
 from app.api.schemas.mp_distributor import (
     MPAllocateQuotaReq,
+    MPDistributorCommissionsReq,
     MPDistributorApplyReq,
     MPDistributorWithdrawStatusReq,
     MPDistributorWithdrawReq,
@@ -138,6 +139,18 @@ def distributor_quota_records(
 ):
     user, _ = current
     data = _distributor_service(request, db).list_quota_records(user=user, page=body.page, page_size=body.page_size)
+    return mp_response(data=data, user_info={"open_id": user.openid, "user_id": user.id})
+
+
+@router.post("/mp/distributor/commissions")
+def distributor_commissions(
+    request: Request,
+    body: MPDistributorCommissionsReq = Body(default_factory=MPDistributorCommissionsReq),
+    current=Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    user, _ = current
+    data = _distributor_service(request, db).list_commissions(user=user, page=body.page, page_size=body.page_size)
     return mp_response(data=data, user_info={"open_id": user.openid, "user_id": user.id})
 
 
