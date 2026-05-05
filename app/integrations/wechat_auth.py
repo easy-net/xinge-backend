@@ -20,7 +20,15 @@ class WechatAuthClient:
     def decrypt_phone_number(self, phone_code: str) -> str:
         raise NotImplementedError
 
-    def create_unlimited_qrcode(self, *, scene: str, page: str, env_version: str = "release", width: int = 430) -> bytes:
+    def create_unlimited_qrcode(
+        self,
+        *,
+        scene: str,
+        page: str,
+        env_version: str = "release",
+        width: int = 430,
+        check_path: bool = True,
+    ) -> bytes:
         raise NotImplementedError
 
 
@@ -31,7 +39,15 @@ class NullWechatAuthClient(WechatAuthClient):
     def decrypt_phone_number(self, phone_code: str) -> str:
         raise AuthError(message="wechat auth client is not configured")
 
-    def create_unlimited_qrcode(self, *, scene: str, page: str, env_version: str = "release", width: int = 430) -> bytes:
+    def create_unlimited_qrcode(
+        self,
+        *,
+        scene: str,
+        page: str,
+        env_version: str = "release",
+        width: int = 430,
+        check_path: bool = True,
+    ) -> bytes:
         raise AuthError(message="wechat auth client is not configured")
 
 
@@ -45,7 +61,15 @@ class DevBypassWechatAuthClient(WechatAuthClient):
         suffix = suffix.rjust(4, "0")
         return "1380000{}".format(suffix)
 
-    def create_unlimited_qrcode(self, *, scene: str, page: str, env_version: str = "release", width: int = 430) -> bytes:
+    def create_unlimited_qrcode(
+        self,
+        *,
+        scene: str,
+        page: str,
+        env_version: str = "release",
+        width: int = 430,
+        check_path: bool = True,
+    ) -> bytes:
         svg = (
             '<svg xmlns="http://www.w3.org/2000/svg" width="430" height="430" viewBox="0 0 430 430">'
             '<rect width="430" height="430" rx="32" fill="#ffffff"/>'
@@ -164,7 +188,15 @@ class RealWechatAuthClient(WechatAuthClient):
 
         raise AuthError(message="wechat access token is invalid or expired")
 
-    def create_unlimited_qrcode(self, *, scene: str, page: str, env_version: str = "release", width: int = 430) -> bytes:
+    def create_unlimited_qrcode(
+        self,
+        *,
+        scene: str,
+        page: str,
+        env_version: str = "release",
+        width: int = 430,
+        check_path: bool = True,
+    ) -> bytes:
         for attempt in range(2):
             access_token = self._get_access_token(force_refresh=attempt > 0)
             request = getattr(self.http_client, "post")
@@ -177,7 +209,7 @@ class RealWechatAuthClient(WechatAuthClient):
                         "page": page,
                         "env_version": env_version,
                         "width": width,
-                        "check_path": True,
+                        "check_path": check_path,
                     },
                     timeout=20,
                     verify=self.verify,

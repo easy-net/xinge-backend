@@ -72,6 +72,7 @@ class DistributorService:
             raise NotFoundError(message="parent distributor not found")
 
         normalized_page = self._normalize_mp_page(page)
+        normalized_env_version = self._normalize_mp_env_version(env_version)
         normalized_level = (distributor_level or "").strip().lower() or self._default_downline_level(parent_profile.distributor_level)
         self._validate_downline_level(parent_level=parent_profile.distributor_level, child_level=normalized_level)
 
@@ -82,7 +83,7 @@ class DistributorService:
         qr_code_bytes = self._create_mp_qrcode_bytes(
             scene=scene,
             page=normalized_page,
-            env_version=env_version,
+            env_version=normalized_env_version,
             width=width,
         )
         encoded = base64.b64encode(qr_code_bytes).decode("ascii")
@@ -92,7 +93,7 @@ class DistributorService:
             "content_type": content_type,
             "distributor_id": parent_user.id,
             "distributor_level": normalized_level,
-            "env_version": env_version,
+            "env_version": normalized_env_version,
             "page": "/{}".format(normalized_page),
             "qr_code_base64": encoded,
             "qr_code_data_url": "data:{};base64,{}".format(content_type, encoded),
@@ -1506,11 +1507,17 @@ class DistributorService:
         return "campus"
 
     def _normalize_mp_page(self, page: str) -> str:
-        normalized = (page or "").strip()
+        normalized = (page or "").strip().split("?", 1)[0].split("#", 1)[0]
         if normalized.startswith("/"):
             normalized = normalized[1:]
-        if not normalized.startswith("pages/"):
+        if not normalized.startswith("pages/") or "//" in normalized or len(normalized.split("/")) < 3:
             raise ValidationError(message="invalid page path")
+        return normalized
+
+    def _normalize_mp_env_version(self, env_version: str) -> str:
+        normalized = (env_version or "").strip().lower() or "release"
+        if normalized not in {"develop", "trial", "release"}:
+            return "release"
         return normalized
 
     def _build_channel_scene(self, *, distributor_id: int, distributor_level: str) -> str:
@@ -1527,6 +1534,7 @@ class DistributorService:
             page=page,
             env_version=env_version,
             width=max(int(width or 430), 120),
+            check_path=env_version == "release",
         )
 
     def _validate_downline_level(self, *, parent_level: str, child_level: str) -> None:

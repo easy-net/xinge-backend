@@ -20,8 +20,16 @@ class FakeWechatAuthClient(WechatAuthClient):
     def decrypt_phone_number(self, phone_code: str) -> str:
         return self.phone_map[phone_code]
 
-    def create_unlimited_qrcode(self, *, scene: str, page: str, env_version: str = "release", width: int = 430) -> bytes:
-        del scene, page, env_version, width
+    def create_unlimited_qrcode(
+        self,
+        *,
+        scene: str,
+        page: str,
+        env_version: str = "release",
+        width: int = 430,
+        check_path: bool = True,
+    ) -> bytes:
+        del scene, page, env_version, width, check_path
         import base64
 
         return base64.b64decode(FAKE_QRCODE_PNG_BASE64)
