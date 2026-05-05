@@ -321,7 +321,7 @@ def test_mp_distributor_qrcode_returns_scene_and_data_url(client, db_session):
     assert data["distributor_id"] == user_id
     assert data["distributor_level"] == "campus"
     assert data["page"] == "/pages/report-preview/index"
-    assert data["scene"] == "distributor_id={}&distributor_level=campus".format(user_id)
+    assert data["scene"] == "d={}&l=campus".format(user_id)
     assert data["qr_code_base64"]
     assert data["qr_code_data_url"].startswith("data:image/")
 

@@ -1514,7 +1514,7 @@ class DistributorService:
         return normalized
 
     def _build_channel_scene(self, *, distributor_id: int, distributor_level: str) -> str:
-        return "distributor_id={}&distributor_level={}".format(
+        return "d={}&l={}".format(
             distributor_id,
             distributor_level,
         )

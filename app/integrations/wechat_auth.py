@@ -188,8 +188,23 @@ class RealWechatAuthClient(WechatAuthClient):
                 raise AuthError(message="wechat service is unavailable") from exc
 
             content_type = (response.headers.get("content-type") or "").lower()
+            content = response.content or b""
+            stripped_content = content.lstrip()
+            if stripped_content.startswith(b"{"):
+                try:
+                    payload = json.loads(stripped_content.decode("utf-8"))
+                except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                    raise AuthError(message="invalid response from wechat service") from exc
+
+                errcode = payload.get("errcode", 0)
+                if errcode in (0, None):
+                    return content
+                if errcode not in (40001, 42001):
+                    raise AuthError(message=self._extract_wechat_error(payload))
+                continue
+
             if "application/json" not in content_type:
-                return response.content
+                return content
 
             try:
                 payload = response.json()
@@ -198,7 +213,7 @@ class RealWechatAuthClient(WechatAuthClient):
 
             errcode = payload.get("errcode", 0)
             if errcode in (0, None):
-                return response.content
+                return content
             if errcode not in (40001, 42001):
                 raise AuthError(message=self._extract_wechat_error(payload))
 
