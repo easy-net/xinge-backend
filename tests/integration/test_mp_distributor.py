@@ -276,3 +276,68 @@ def test_mp_distributor_downlines_supports_level_filter(client, db_session):
     data = response.json()["data"]
     assert data["total"] == 1
     assert data["list"][0]["distributor_level"] == "campus"
+
+
+def test_mp_distributor_join_creates_downline_profile(client, db_session):
+    parent_user_id = seed_distributor_user(client, db_session)
+
+    client.post("/api/v1/mp/auth/login", headers=auth_headers("login-code-user-2", "device-2"), json={})
+    response = client.post(
+        "/api/v1/mp/distributor/join",
+        headers=auth_headers("login-code-user-2", "device-2"),
+        json={
+            "parent_distributor_id": parent_user_id,
+            "distributor_level": "campus",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["parent_distributor_id"] == parent_user_id
+    assert data["distributor_level"] == "campus"
+
+    joined_user = db_session.execute(select(User).where(User.openid == "openid-user-2")).scalar_one()
+    joined_profile = db_session.execute(select(DistributorProfile).where(DistributorProfile.user_id == joined_user.id)).scalar_one()
+    assert joined_user.is_distributor is True
+    assert joined_profile.parent_distributor_id == parent_user_id
+    assert joined_profile.distributor_level == "campus"
+
+
+def test_mp_distributor_qrcode_returns_scene_and_data_url(client, db_session):
+    user_id = seed_distributor_user(client, db_session)
+
+    response = client.post(
+        "/api/v1/mp/distributor/qrcode",
+        headers=auth_headers(),
+        json={
+            "distributor_id": user_id,
+            "distributor_level": "campus",
+            "page": "/pages/report-preview/index",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["distributor_id"] == user_id
+    assert data["distributor_level"] == "campus"
+    assert data["page"] == "/pages/report-preview/index"
+    assert data["scene"] == "distributor_id={}&distributor_level=campus".format(user_id)
+    assert data["qr_code_base64"]
+    assert data["qr_code_data_url"].startswith("data:image/")
+
+
+def test_mp_distributor_qrcode_rejects_invalid_page(client, db_session):
+    user_id = seed_distributor_user(client, db_session)
+
+    response = client.post(
+        "/api/v1/mp/distributor/qrcode",
+        headers=auth_headers(),
+        json={
+            "distributor_id": user_id,
+            "distributor_level": "campus",
+            "page": "report-preview",
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json()["message"] == "invalid page path"

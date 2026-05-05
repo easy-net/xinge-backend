@@ -1,5 +1,6 @@
 import time
 import logging
+import json
 from dataclasses import dataclass
 
 from app.core.errors import AuthError
@@ -19,12 +20,18 @@ class WechatAuthClient:
     def decrypt_phone_number(self, phone_code: str) -> str:
         raise NotImplementedError
 
+    def create_unlimited_qrcode(self, *, scene: str, page: str, env_version: str = "release", width: int = 430) -> bytes:
+        raise NotImplementedError
+
 
 class NullWechatAuthClient(WechatAuthClient):
     def code_to_session(self, login_code: str) -> WechatSessionInfo:
         raise AuthError(message="wechat auth client is not configured")
 
     def decrypt_phone_number(self, phone_code: str) -> str:
+        raise AuthError(message="wechat auth client is not configured")
+
+    def create_unlimited_qrcode(self, *, scene: str, page: str, env_version: str = "release", width: int = 430) -> bytes:
         raise AuthError(message="wechat auth client is not configured")
 
 
@@ -37,6 +44,19 @@ class DevBypassWechatAuthClient(WechatAuthClient):
         suffix = "".join(ch for ch in phone_code if ch.isdigit())[-4:]
         suffix = suffix.rjust(4, "0")
         return "1380000{}".format(suffix)
+
+    def create_unlimited_qrcode(self, *, scene: str, page: str, env_version: str = "release", width: int = 430) -> bytes:
+        svg = (
+            '<svg xmlns="http://www.w3.org/2000/svg" width="430" height="430" viewBox="0 0 430 430">'
+            '<rect width="430" height="430" rx="32" fill="#ffffff"/>'
+            '<rect x="24" y="24" width="382" height="382" rx="28" fill="#f3f7ff" stroke="#1b7cff" stroke-width="6"/>'
+            '<text x="215" y="178" font-size="26" text-anchor="middle" fill="#1b2c52">DEV QR CODE</text>'
+            '<text x="215" y="224" font-size="16" text-anchor="middle" fill="#516889">{}</text>'
+            '<text x="215" y="254" font-size="16" text-anchor="middle" fill="#516889">{}</text>'
+            '<text x="215" y="284" font-size="14" text-anchor="middle" fill="#7c8fad">{}</text>'
+            '</svg>'
+        ).format(page[:48], scene[:48], env_version)
+        return svg.encode("utf-8")
 
 
 class RealWechatAuthClient(WechatAuthClient):
@@ -139,6 +159,46 @@ class RealWechatAuthClient(WechatAuthClient):
                 if not phone_number:
                     raise AuthError(message="invalid phone payload from wechat")
                 return phone_number
+            if errcode not in (40001, 42001):
+                raise AuthError(message=self._extract_wechat_error(payload))
+
+        raise AuthError(message="wechat access token is invalid or expired")
+
+    def create_unlimited_qrcode(self, *, scene: str, page: str, env_version: str = "release", width: int = 430) -> bytes:
+        for attempt in range(2):
+            access_token = self._get_access_token(force_refresh=attempt > 0)
+            request = getattr(self.http_client, "post")
+            try:
+                response = request(
+                    "https://api.weixin.qq.com/wxa/getwxacodeunlimit",
+                    params={"access_token": access_token},
+                    json={
+                        "scene": scene,
+                        "page": page,
+                        "env_version": env_version,
+                        "width": width,
+                        "check_path": True,
+                    },
+                    timeout=20,
+                    verify=self.verify,
+                )
+                response.raise_for_status()
+            except Exception as exc:
+                logger.exception("wechat qrcode request failed page=%s verify=%s", page, self.verify)
+                raise AuthError(message="wechat service is unavailable") from exc
+
+            content_type = (response.headers.get("content-type") or "").lower()
+            if "application/json" not in content_type:
+                return response.content
+
+            try:
+                payload = response.json()
+            except json.JSONDecodeError as exc:
+                raise AuthError(message="invalid response from wechat service") from exc
+
+            errcode = payload.get("errcode", 0)
+            if errcode in (0, None):
+                return response.content
             if errcode not in (40001, 42001):
                 raise AuthError(message=self._extract_wechat_error(payload))
 

@@ -2,6 +2,12 @@ from app.integrations.wechat_auth import WechatAuthClient, WechatSessionInfo
 from app.integrations.wechat_pay import BalanceResult, PaymentParams, TransferResult, WechatPayClient
 
 
+FAKE_QRCODE_PNG_BASE64 = (
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8"
+    "/w8AAgMBgN8Xl3sAAAAASUVORK5CYII="
+)
+
+
 class FakeWechatAuthClient(WechatAuthClient):
     def __init__(self, session_map=None, phone_map=None):
         self.session_map = session_map or {}
@@ -13,6 +19,12 @@ class FakeWechatAuthClient(WechatAuthClient):
 
     def decrypt_phone_number(self, phone_code: str) -> str:
         return self.phone_map[phone_code]
+
+    def create_unlimited_qrcode(self, *, scene: str, page: str, env_version: str = "release", width: int = 430) -> bytes:
+        del scene, page, env_version, width
+        import base64
+
+        return base64.b64decode(FAKE_QRCODE_PNG_BASE64)
 
 
 class FakeWechatPayClient(WechatPayClient):

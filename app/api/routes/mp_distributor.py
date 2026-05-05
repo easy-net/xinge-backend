@@ -3,11 +3,13 @@ import json
 from fastapi import APIRouter, Body, Depends, Request
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db_session, get_wechat_pay_client
+from app.api.deps import get_current_user, get_db_session, get_wechat_pay_client, get_wechat_auth_client
 from app.api.schemas.mp_distributor import (
     MPAllocateQuotaReq,
     MPDistributorCommissionsReq,
     MPDistributorApplyReq,
+    MPDistributorJoinReq,
+    MPDistributorQrcodeReq,
     MPDistributorWithdrawStatusReq,
     MPDistributorWithdrawReq,
     MPDownlinesReq,
@@ -20,7 +22,12 @@ router = APIRouter(tags=["mp/distributor"])
 
 
 def _distributor_service(request: Request, db: Session) -> DistributorService:
-    return DistributorService(db, get_wechat_pay_client(request), request.app.state.settings)
+    return DistributorService(
+        db,
+        wechat_pay_client=get_wechat_pay_client(request),
+        wechat_auth_client=get_wechat_auth_client(request),
+        settings=request.app.state.settings,
+    )
 
 
 @router.post("/mp/distributor/apply")
@@ -32,6 +39,22 @@ def distributor_apply(
 ):
     user, _ = current
     data = _distributor_service(request, db).apply(user=user, payload=body.model_dump())
+    return mp_response(data=data, user_info={"open_id": user.openid, "user_id": user.id})
+
+
+@router.post("/mp/distributor/join")
+def distributor_join(
+    request: Request,
+    body: MPDistributorJoinReq,
+    current=Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    user, _ = current
+    data = _distributor_service(request, db).join(
+        user=user,
+        parent_distributor_id=body.parent_distributor_id,
+        distributor_level=body.distributor_level,
+    )
     return mp_response(data=data, user_info={"open_id": user.openid, "user_id": user.id})
 
 
@@ -151,6 +174,25 @@ def distributor_commissions(
 ):
     user, _ = current
     data = _distributor_service(request, db).list_commissions(user=user, page=body.page, page_size=body.page_size)
+    return mp_response(data=data, user_info={"open_id": user.openid, "user_id": user.id})
+
+
+@router.post("/mp/distributor/qrcode")
+def distributor_qrcode(
+    request: Request,
+    body: MPDistributorQrcodeReq,
+    current=Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    user, _ = current
+    data = _distributor_service(request, db).create_qrcode(
+        user=user,
+        distributor_id=body.distributor_id,
+        distributor_level=body.distributor_level,
+        page=body.page,
+        env_version=body.env_version,
+        width=body.width,
+    )
     return mp_response(data=data, user_info={"open_id": user.openid, "user_id": user.id})
 
 

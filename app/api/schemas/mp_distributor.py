@@ -37,3 +37,16 @@ class MPDistributorWithdrawStatusReq(BaseModel):
 class MPDistributorCommissionsReq(BaseModel):
     page: int = 1
     page_size: int = 20
+
+
+class MPDistributorJoinReq(BaseModel):
+    parent_distributor_id: int
+    distributor_level: str = "campus"
+
+
+class MPDistributorQrcodeReq(BaseModel):
+    distributor_id: int
+    distributor_level: str = "campus"
+    page: str = "pages/home/index"
+    env_version: str = "release"
+    width: int = 430

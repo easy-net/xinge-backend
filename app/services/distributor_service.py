@@ -1,6 +1,7 @@
 import logging
 import re
 import secrets
+import base64
 from datetime import datetime
 
 from app.core.errors import ConflictError, ForbiddenError, NotFoundError, ValidationError
@@ -12,9 +13,10 @@ from app.repositories.user_repository import UserRepository
 
 
 class DistributorService:
-    def __init__(self, db, wechat_pay_client=None, settings=None):
+    def __init__(self, db, wechat_pay_client=None, wechat_auth_client=None, settings=None):
         self.db = db
         self.wechat_pay_client = wechat_pay_client
+        self.wechat_auth_client = wechat_auth_client
         self.settings = settings
         self.repository = DistributorRepository(db)
         self.report_repository = ReportRepository(db)
@@ -46,6 +48,86 @@ class DistributorService:
             "unsettled_commission": profile.unsettled_commission,
             "user_id": user.id,
             "withdrawable_amount": max(profile.unsettled_commission, 0),
+        }
+
+    def create_qrcode(
+        self,
+        *,
+        user,
+        distributor_id: int,
+        distributor_level: str,
+        page: str,
+        env_version: str = "release",
+        width: int = 430,
+    ):
+        if user.role != "admin":
+            self._require_distributor(user)
+
+        parent_user = self.user_repository.get_by_id(distributor_id)
+        if parent_user is None or not parent_user.is_distributor:
+            raise NotFoundError(message="parent distributor not found")
+
+        parent_profile = self.repository.get_profile_for_user(user_id=parent_user.id)
+        if parent_profile is None:
+            raise NotFoundError(message="parent distributor not found")
+
+        normalized_page = self._normalize_mp_page(page)
+        normalized_level = (distributor_level or "").strip().lower() or self._default_downline_level(parent_profile.distributor_level)
+        self._validate_downline_level(parent_level=parent_profile.distributor_level, child_level=normalized_level)
+
+        scene = self._build_channel_scene(
+            distributor_id=parent_user.id,
+            distributor_level=normalized_level,
+        )
+        qr_code_bytes = self._create_mp_qrcode_bytes(
+            scene=scene,
+            page=normalized_page,
+            env_version=env_version,
+            width=width,
+        )
+        encoded = base64.b64encode(qr_code_bytes).decode("ascii")
+        content_type = "image/svg+xml" if qr_code_bytes.lstrip().startswith(b"<svg") else "image/png"
+
+        return {
+            "content_type": content_type,
+            "distributor_id": parent_user.id,
+            "distributor_level": normalized_level,
+            "env_version": env_version,
+            "page": "/{}".format(normalized_page),
+            "qr_code_base64": encoded,
+            "qr_code_data_url": "data:{};base64,{}".format(content_type, encoded),
+            "scene": scene,
+            "width": max(int(width or 430), 120),
+        }
+
+    def join(self, *, user, parent_distributor_id: int, distributor_level: str):
+        if user.is_distributor:
+            raise ConflictError(message="already distributor")
+
+        parent_user = self.user_repository.get_by_id(parent_distributor_id)
+        if parent_user is None or not parent_user.is_distributor:
+            raise NotFoundError(message="parent distributor not found")
+
+        parent_profile = self.repository.get_profile_for_user(user_id=parent_user.id)
+        if parent_profile is None:
+            raise NotFoundError(message="parent distributor not found")
+
+        normalized_level = (distributor_level or "").strip().lower() or self._default_downline_level(parent_profile.distributor_level)
+        self._validate_downline_level(parent_level=parent_profile.distributor_level, child_level=normalized_level)
+
+        user.role = "distributor"
+        user.is_distributor = True
+        profile = self.repository.create_profile(
+            user_id=user.id,
+            distributor_level=normalized_level,
+            parent_distributor_id=parent_user.id,
+            quota_total=0,
+        )
+        self.db.commit()
+        return {
+            "distributor_level": profile.distributor_level,
+            "parent_distributor_id": profile.parent_distributor_id,
+            "user_id": user.id,
         }
 
     def apply(self, *, user, payload: dict):
@@ -1422,6 +1504,30 @@ class DistributorService:
         if parent_level == "strategic":
             return "city"
         return "campus"
+
+    def _normalize_mp_page(self, page: str) -> str:
+        normalized = (page or "").strip()
+        if normalized.startswith("/"):
+            normalized = normalized[1:]
+        if not normalized.startswith("pages/"):
+            raise ValidationError(message="invalid page path")
+        return normalized
+
+    def _build_channel_scene(self, *, distributor_id: int, distributor_level: str) -> str:
+        return "distributor_id={}&distributor_level={}".format(
+            distributor_id,
+            distributor_level,
+        )
+
+    def _create_mp_qrcode_bytes(self, *, scene: str, page: str, env_version: str, width: int) -> bytes:
+        if not self.wechat_auth_client:
+            raise ValidationError(message="wechat auth client is not configured")
+        return self.wechat_auth_client.create_unlimited_qrcode(
+            scene=scene,
+            page=page,
+            env_version=env_version,
+            width=max(int(width or 430), 120),
+        )
 
     def _validate_downline_level(self, *, parent_level: str, child_level: str) -> None:
         allowed_levels = {
