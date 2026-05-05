@@ -35,5 +35,6 @@ def update_me(
         request_context,
         nickname=body.nickname,
         avatar_url=body.avatar_url,
+        phone_code=body.phone_code,
     )
     return mp_response(data=data, user_info=user_info)

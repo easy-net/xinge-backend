@@ -6,4 +6,4 @@ from pydantic import BaseModel
 class MPUpdateMeReq(BaseModel):
     nickname: Optional[str] = None
     avatar_url: Optional[str] = None
-
+    phone_code: Optional[str] = None

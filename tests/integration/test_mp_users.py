@@ -29,6 +29,41 @@ def test_mp_users_me_returns_profile(client):
     assert response.json()["data"]["user_id"] > 0
 
 
+def test_mp_login_binds_entry_channel_parent(client, db_session):
+    parent = User(openid="parent-openid", unionid="parent-unionid", is_distributor=True, role="distributor")
+    db_session.add(parent)
+    db_session.flush()
+    db_session.add(
+        DistributorProfile(
+            user_id=parent.id,
+            distributor_level="city",
+            quota_total=200,
+        )
+    )
+    db_session.commit()
+
+    login_response = client.post(
+        "/api/v1/mp/auth/login",
+        headers={
+            "X-Login-Code": "login-code-user-1",
+            "X-System-Version": "iOS 17.0",
+            "X-Device-UUID": "device-1",
+        },
+        json={
+            "parent_distributor_id": parent.id,
+            "target_level": "user",
+        },
+    )
+
+    assert login_response.status_code == 200
+    user_id = login_response.json()["user_info"]["user_id"]
+    user = db_session.execute(select(User).where(User.id == user_id)).scalar_one()
+    profile = db_session.execute(select(DistributorProfile).where(DistributorProfile.user_id == user_id)).scalar_one()
+    assert user.is_distributor is False
+    assert profile.parent_distributor_id == parent.id
+    assert profile.distributor_level == "user"
+
+
 def test_mp_users_me_returns_real_distributor_fields(client, db_session):
     login_response = client.post(
         "/api/v1/mp/auth/login",
@@ -104,6 +139,46 @@ def test_mp_users_me_update_changes_profile(client):
 
     assert me_response.status_code == 200
     assert me_response.json()["data"]["nickname"] == "张三"
+
+
+def test_mp_users_me_update_changes_phone(client):
+    client.post(
+        "/api/v1/mp/auth/login",
+        headers={
+            "X-Login-Code": "login-code-user-1",
+            "X-System-Version": "iOS 17.0",
+            "X-Device-UUID": "device-1",
+        },
+        json={},
+    )
+
+    update_response = client.post(
+        "/api/v1/mp/users/me/update",
+        headers={
+            "X-Login-Code": "login-code-user-1",
+            "X-System-Version": "iOS 17.0",
+            "X-Device-UUID": "device-1",
+        },
+        json={"phone_code": "phone-code-user-1"},
+    )
+
+    assert update_response.status_code == 200
+    assert update_response.json()["data"]["has_phone"] is True
+    assert update_response.json()["data"]["phone_masked"] == "138****8000"
+
+    me_response = client.post(
+        "/api/v1/mp/users/me",
+        headers={
+            "X-Login-Code": "login-code-user-1",
+            "X-System-Version": "iOS 17.0",
+            "X-Device-UUID": "device-1",
+        },
+        json={},
+    )
+
+    assert me_response.status_code == 200
+    assert me_response.json()["data"]["has_phone"] is True
+    assert me_response.json()["data"]["phone_masked"] == "138****8000"
 
 
 def test_mp_users_me_accepts_bearer_token_without_login_code(client):

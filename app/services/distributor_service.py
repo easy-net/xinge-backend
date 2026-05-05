@@ -102,7 +102,8 @@ class DistributorService:
         }
 
     def join(self, *, user, parent_distributor_id: int, distributor_level: str):
-        if user.is_distributor:
+        existing_profile = self.repository.get_profile_for_user(user_id=user.id)
+        if user.is_distributor or existing_profile is not None:
             raise ConflictError(message="already distributor")
 
         parent_user = self.user_repository.get_by_id(parent_distributor_id)
@@ -116,8 +117,9 @@ class DistributorService:
         normalized_level = (distributor_level or "").strip().lower() or self._default_downline_level(parent_profile.distributor_level)
         self._validate_downline_level(parent_level=parent_profile.distributor_level, child_level=normalized_level)
 
-        user.role = "distributor"
-        user.is_distributor = True
+        if normalized_level != "user":
+            user.role = "distributor"
+            user.is_distributor = True
         profile = self.repository.create_profile(
             user_id=user.id,
             distributor_level=normalized_level,
@@ -1504,6 +1506,8 @@ class DistributorService:
     def _default_downline_level(self, parent_level: str) -> str:
         if parent_level == "strategic":
             return "city"
+        if parent_level == "campus":
+            return "user"
         return "campus"
 
     def _normalize_mp_page(self, page: str) -> str:
@@ -1539,12 +1543,13 @@ class DistributorService:
 
     def _validate_downline_level(self, *, parent_level: str, child_level: str) -> None:
         allowed_levels = {
-            "admin": {"strategic", "city", "campus"},
-            "strategic": {"city", "campus"},
-            "city": {"campus"},
-            "campus": set(),
+            "admin": {"strategic", "city", "campus", "user"},
+            "strategic": {"city", "campus", "user"},
+            "city": {"campus", "user"},
+            "campus": {"user"},
+            "user": set(),
         }
-        if child_level not in {"strategic", "city", "campus"}:
+        if child_level not in {"strategic", "city", "campus", "user"}:
             raise ValidationError(message="invalid distributor level")
         if child_level not in allowed_levels.get(parent_level, set()):
             raise ValidationError(message="downline level is not allowed for current parent level")

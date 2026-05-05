@@ -303,6 +303,31 @@ def test_mp_distributor_join_creates_downline_profile(client, db_session):
     assert joined_profile.distributor_level == "campus"
 
 
+def test_mp_distributor_join_user_code_keeps_normal_user_role(client, db_session):
+    parent_user_id = seed_distributor_user(client, db_session)
+
+    client.post("/api/v1/mp/auth/login", headers=auth_headers("login-code-user-2", "device-2"), json={})
+    response = client.post(
+        "/api/v1/mp/distributor/join",
+        headers=auth_headers("login-code-user-2", "device-2"),
+        json={
+            "parent_distributor_id": parent_user_id,
+            "distributor_level": "user",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["parent_distributor_id"] == parent_user_id
+    assert data["distributor_level"] == "user"
+
+    joined_user = db_session.execute(select(User).where(User.openid == "openid-user-2")).scalar_one()
+    joined_profile = db_session.execute(select(DistributorProfile).where(DistributorProfile.user_id == joined_user.id)).scalar_one()
+    assert joined_user.is_distributor is False
+    assert joined_profile.parent_distributor_id == parent_user_id
+    assert joined_profile.distributor_level == "user"
+
+
 def test_mp_distributor_qrcode_returns_scene_and_data_url(client, db_session):
     user_id = seed_distributor_user(client, db_session)
 
@@ -324,6 +349,25 @@ def test_mp_distributor_qrcode_returns_scene_and_data_url(client, db_session):
     assert data["scene"] == "d={}&l=campus".format(user_id)
     assert data["qr_code_base64"]
     assert data["qr_code_data_url"].startswith("data:image/")
+
+
+def test_mp_distributor_qrcode_accepts_user_code(client, db_session):
+    user_id = seed_distributor_user(client, db_session)
+
+    response = client.post(
+        "/api/v1/mp/distributor/qrcode",
+        headers=auth_headers(),
+        json={
+            "distributor_id": user_id,
+            "distributor_level": "user",
+            "page": "/pages/home/index",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["distributor_level"] == "user"
+    assert data["scene"] == "d={}&l=user".format(user_id)
 
 
 def test_mp_distributor_qrcode_rejects_invalid_page(client, db_session):

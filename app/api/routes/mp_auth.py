@@ -17,7 +17,11 @@ def mp_login(
     db: Session = Depends(get_db_session),
     wechat_auth_client=Depends(get_wechat_auth_client),
 ):
-    data, user_info = AuthService(db, wechat_auth_client, request.app.state.settings).login(request_context, body.distributor_id)
+    data, user_info = AuthService(db, wechat_auth_client, request.app.state.settings).login(
+        request_context,
+        parent_distributor_id=body.parent_distributor_id or body.distributor_id,
+        target_level=body.target_level,
+    )
     return mp_response(data=data, user_info=user_info)
 
 
