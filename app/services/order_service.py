@@ -17,7 +17,7 @@ class OrderService:
         self.product_config_repository = ProductConfigRepository(db)
         self.report_repository = ReportRepository(db)
 
-    def create_order(self, *, user, report_id: int, amount: int):
+    def create_order(self, *, user, report_id: int, amount: int, platform: str = "android"):
         report = self.report_repository.get_for_user(report_id=report_id, user_id=user.id)
         if report is None:
             raise NotFoundError(message="report not found")
@@ -35,42 +35,48 @@ class OrderService:
         order_id = "ORD{}".format(secrets.token_hex(10).upper())
         logger = logging.getLogger(__name__)
         logger.info(
-            "order.create.start order_id=%s user_id=%s report_id=%s amount=%s openid=%s pay_client=%s",
+            "order.create.start order_id=%s user_id=%s report_id=%s amount=%s openid=%s pay_client=%s platform=%s",
             order_id,
             user.id,
             report_id,
             amount,
             "{}***{}".format(user.openid[:4], user.openid[-4:]) if user.openid and len(user.openid) >= 8 else bool(user.openid),
             type(self.wechat_pay_client).__name__,
+            platform,
         )
-        payment = self.wechat_pay_client.create_prepay(order_id=order_id, amount=amount, openid=user.openid)
+        payment = self.wechat_pay_client.create_virtual_prepay(
+            order_id=order_id, amount=amount, openid=user.openid, platform=platform
+        )
         order = self.order_repository.create(
             order_id=order_id,
             user_id=user.id,
             report_id=report_id,
             amount=amount,
-            channel="wechat",
+            channel="wechat_virtual",
             status="pending",
-            prepay_id=payment.prepay_id,
+            prepay_id=payment.outTradeNo,
         )
         self.report_repository.update_status(report=report, status="unpaid")
         self.db.commit()
         logger.info(
-            "order.create.success order_id=%s prepay_id=%s sign_type=%s package=%s",
+            "order.create.success order_id=%s offer_id=%s platform=%s env=%s",
             order.order_id,
-            payment.prepay_id,
-            payment.signType,
-            payment.package,
+            payment.offerId,
+            payment.platform,
+            payment.env,
         )
         return {
             "amount": order.amount,
             "order_id": order.order_id,
-            "payment_params": {
-                "timeStamp": payment.timeStamp,
-                "nonceStr": payment.nonceStr,
-                "package": payment.package,
-                "signType": payment.signType,
-                "paySign": payment.paySign,
+            "virtual_payment_params": {
+                "offerId": payment.offerId,
+                "buyQuantity": payment.buyQuantity,
+                "env": payment.env,
+                "currencyType": payment.currencyType,
+                "platform": payment.platform,
+                "productId": payment.productId,
+                "goodsPrice": payment.goodsPrice,
+                "outTradeNo": payment.outTradeNo,
             },
             "report_id": order.report_id,
         }
@@ -98,26 +104,31 @@ class OrderService:
             "total": total,
         }
 
-    def repay_order(self, *, user, order_id: str):
+    def repay_order(self, *, user, order_id: str, platform: str = "android"):
         order = self.order_repository.get_for_user(order_id=order_id, user_id=user.id)
         if order is None:
             raise NotFoundError(message="order not found")
         if order.status != "pending":
             raise ConflictError(message="order is not pending")
 
-        payment = self.wechat_pay_client.create_prepay(order_id=order.order_id, amount=order.amount, openid=user.openid)
-        self.order_repository.update_prepay(order=order, prepay_id=payment.prepay_id)
+        payment = self.wechat_pay_client.create_virtual_prepay(
+            order_id=order.order_id, amount=order.amount, openid=user.openid, platform=platform
+        )
+        self.order_repository.update_prepay(order=order, prepay_id=payment.outTradeNo)
         self.db.commit()
 
         return {
             "amount": order.amount,
             "order_id": order.order_id,
-            "payment_params": {
-                "timeStamp": payment.timeStamp,
-                "nonceStr": payment.nonceStr,
-                "package": payment.package,
-                "signType": payment.signType,
-                "paySign": payment.paySign,
+            "virtual_payment_params": {
+                "offerId": payment.offerId,
+                "buyQuantity": payment.buyQuantity,
+                "env": payment.env,
+                "currencyType": payment.currencyType,
+                "platform": payment.platform,
+                "productId": payment.productId,
+                "goodsPrice": payment.goodsPrice,
+                "outTradeNo": payment.outTradeNo,
             },
             "report_id": order.report_id,
         }

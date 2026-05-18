@@ -26,6 +26,19 @@ class PaymentParams:
 
 
 @dataclass
+class VirtualPaymentParams:
+    """虚拟支付所需参数，供前端调用 wx.requestVirtualPayment"""
+    offerId: str          # 道具/商品 ID（在微信平台配置）
+    buyQuantity: int      # 购买数量，通常为 1
+    env: int              # 0=正式环境，1=沙盒
+    currencyType: str     # "CNY"
+    platform: str         # "android" 或 "ios"
+    productId: str        # 透传的订单 ID，用于对账
+    goodsPrice: int       # 单价（分）
+    outTradeNo: str       # 业务侧订单号
+
+
+@dataclass
 class PaymentNotification:
     notify_id: str
     order_id: str
@@ -52,6 +65,9 @@ class BalanceResult:
 
 class WechatPayClient:
     def create_prepay(self, *, order_id: str, amount: int, openid: str) -> PaymentParams:
+        raise NotImplementedError
+
+    def create_virtual_prepay(self, *, order_id: str, amount: int, openid: str, platform: str = "android") -> VirtualPaymentParams:
         raise NotImplementedError
 
     def parse_notification(self, payload: dict) -> PaymentNotification:
@@ -202,6 +218,34 @@ class RealWechatPayClient(WechatPayClient):
             signType=payment_params["signType"],
             paySign=payment_params["paySign"],
             prepay_id=prepay_id,
+        )
+
+    def create_virtual_prepay(self, *, order_id: str, amount: int, openid: str, platform: str = "android") -> VirtualPaymentParams:
+        """
+        虚拟支付无需向微信服务端预下单，参数直接由客户端调用 wx.requestVirtualPayment。
+        后端负责生成标准化的虚拟支付参数结构，前端原样透传给微信 API。
+        offerId 和 env 通过配置项注入。
+        """
+        logger = logging.getLogger(__name__)
+        offer_id = (self.settings.wechat_virtual_offer_id or "").strip()
+        env = int(self.settings.wechat_virtual_env)
+        logger.info(
+            "wechat.virtual_pay.build order_id=%s offer_id=%s amount=%s platform=%s env=%s",
+            order_id,
+            offer_id,
+            amount,
+            platform,
+            env,
+        )
+        return VirtualPaymentParams(
+            offerId=offer_id,
+            buyQuantity=1,
+            env=env,
+            currencyType="CNY",
+            platform=platform,
+            productId=order_id,
+            goodsPrice=int(amount),
+            outTradeNo=order_id,
         )
 
     def transfer_to_balance(self, *, out_bill_no: str, amount: int, openid: str, user_name: str = "") -> TransferResult:
@@ -424,6 +468,18 @@ class NullWechatPayClient(WechatPayClient):
             signType="RSA",
             paySign="not-configured",
             prepay_id=order_id,
+        )
+
+    def create_virtual_prepay(self, *, order_id: str, amount: int, openid: str, platform: str = "android") -> VirtualPaymentParams:
+        return VirtualPaymentParams(
+            offerId="mock-offer-id",
+            buyQuantity=1,
+            env=1,
+            currencyType="CNY",
+            platform=platform,
+            productId=order_id,
+            goodsPrice=int(amount),
+            outTradeNo=order_id,
         )
 
     def parse_notification(self, payload: dict) -> PaymentNotification:

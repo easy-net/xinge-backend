@@ -6,6 +6,7 @@ from pydantic import BaseModel
 class MPCreateOrderReq(BaseModel):
     report_id: int
     amount: int
+    platform: Optional[str] = "android"   # "android" 或 "ios"，用于虚拟支付参数
 
 
 class MPOrderDetailReq(BaseModel):
@@ -19,6 +20,7 @@ class MPOrderListReq(BaseModel):
 
 class MPOrderPayReq(BaseModel):
     order_id: str
+    platform: Optional[str] = "android"   # "android" 或 "ios"，用于虚拟支付参数
 
 
 class MPOrderConfirmReq(BaseModel):

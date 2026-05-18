@@ -1511,7 +1511,9 @@ class DistributorService:
         return "campus"
 
     def _normalize_mp_page(self, page: str) -> str:
-        normalized = (page or "").strip().split("?", 1)[0].split("#", 1)[0]
+        normalized = (page or "pages/home/index").strip().split("?", 1)[0].split("#", 1)[0]
+        if not normalized:
+            normalized = "pages/home/index"
         if normalized.startswith("/"):
             normalized = normalized[1:]
         if not normalized.startswith("pages/") or "//" in normalized or len(normalized.split("/")) < 3:

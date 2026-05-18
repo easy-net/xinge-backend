@@ -18,6 +18,7 @@ class MPCreateReportReq(BaseModel):
     college_name: Optional[str] = None
     major_name: Optional[str] = None
     gender: Optional[str] = None
+    political_status: Optional[str] = None
     gaokao_province: Optional[str] = None
     gaokao_score: Optional[int] = None
     gaokao_rank: Optional[int] = None

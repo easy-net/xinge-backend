@@ -30,6 +30,7 @@ def create_order(
         user=user,
         report_id=body.report_id,
         amount=body.amount,
+        platform=body.platform or "android",
     )
     return mp_response(data=data, user_info={"open_id": user.openid, "user_id": user.id})
 
@@ -66,7 +67,9 @@ def order_pay(
     wechat_pay_client=Depends(get_wechat_pay_client),
 ):
     user, _ = current
-    data = OrderService(db, wechat_pay_client).repay_order(user=user, order_id=body.order_id)
+    data = OrderService(db, wechat_pay_client).repay_order(
+        user=user, order_id=body.order_id, platform=body.platform or "android"
+    )
     return mp_response(data=data, user_info={"open_id": user.openid, "user_id": user.id})
 
 
