@@ -69,6 +69,7 @@ class OrderService:
         return {
             "amount": order.amount,
             "order_id": order.order_id,
+            "payment_params": self._serialize_virtual_payment(payment),
             "virtual_payment_params": self._serialize_virtual_payment(payment),
             "report_id": order.report_id,
         }
@@ -110,6 +111,7 @@ class OrderService:
         return {
             "amount": order.amount,
             "order_id": order.order_id,
+            "payment_params": self._serialize_virtual_payment(payment),
             "virtual_payment_params": self._serialize_virtual_payment(payment),
             "report_id": order.report_id,
         }
