@@ -69,6 +69,14 @@ class OrderService:
         return {
             "amount": order.amount,
             "order_id": order.order_id,
+            "payment_provider": "wechat_virtual",
+            "payment_debug": {
+                "has_mode": bool(payment.mode),
+                "has_sign_data": bool(payment.signData),
+                "has_pay_sig": bool(payment.paySig),
+                "has_signature": bool(payment.signature),
+                "offer_id": payment.offerId,
+            },
             "payment_params": self._serialize_virtual_payment(payment),
             "virtual_payment_params": self._serialize_virtual_payment(payment),
             "report_id": order.report_id,
@@ -111,6 +119,14 @@ class OrderService:
         return {
             "amount": order.amount,
             "order_id": order.order_id,
+            "payment_provider": "wechat_virtual",
+            "payment_debug": {
+                "has_mode": bool(payment.mode),
+                "has_sign_data": bool(payment.signData),
+                "has_pay_sig": bool(payment.paySig),
+                "has_signature": bool(payment.signature),
+                "offer_id": payment.offerId,
+            },
             "payment_params": self._serialize_virtual_payment(payment),
             "virtual_payment_params": self._serialize_virtual_payment(payment),
             "report_id": order.report_id,
