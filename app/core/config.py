@@ -55,7 +55,7 @@ class Settings:
     wechat_ca_bundle_path: str = ""
     # 虚拟支付配置
     wechat_virtual_offer_id: str = "1450536598"      # 微信虚拟支付 OfferID / 支付应用 ID
-    wechat_virtual_app_key: str = ""       # 微信虚拟支付支付签名密钥
+    wechat_virtual_app_key: str = "wx119f24d9ccbc9c30"       # 微信虚拟支付支付签名密钥
     wechat_virtual_env: int = 0            # 0=正式环境，1=沙盒环境
     wechat_transfer_scene_id: str = "1005"
     wechat_transfer_remark: str = "fenxiaoshangtixian"
@@ -159,6 +159,6 @@ def get_settings() -> Settings:
         log_current_user_resolution=os.getenv("LOG_CURRENT_USER_RESOLUTION", "false").lower() == "true",
         seed_school_fixtures_on_startup=os.getenv("SEED_SCHOOL_FIXTURES_ON_STARTUP", "true").lower() == "true",
         wechat_virtual_offer_id=env_or_default("WECHAT_VIRTUAL_OFFER_ID", "1450536598"),
-        wechat_virtual_app_key=os.getenv("WECHAT_VIRTUAL_APP_KEY", ""),
+        wechat_virtual_app_key=env_or_default("WECHAT_VIRTUAL_APP_KEY", "wx119f24d9ccbc9c30"),
         wechat_virtual_env=int(os.getenv("WECHAT_VIRTUAL_ENV", "0")),
     )
