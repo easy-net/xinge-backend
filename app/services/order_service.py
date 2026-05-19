@@ -8,6 +8,7 @@ from app.core.security import decrypt_text
 from app.repositories.order_repository import OrderRepository
 from app.repositories.product_config_repository import ProductConfigRepository
 from app.repositories.report_repository import ReportRepository
+from app.repositories.user_repository import UserRepository
 from app.services.distributor_service import DistributorService
 
 
@@ -19,6 +20,7 @@ class OrderService:
         self.order_repository = OrderRepository(db)
         self.product_config_repository = ProductConfigRepository(db)
         self.report_repository = ReportRepository(db)
+        self.user_repository = UserRepository(db)
 
     def create_order(self, *, user, report_id: int, amount: int, platform: str = "android"):
         report = self.report_repository.get_for_user(report_id=report_id, user_id=user.id)
@@ -136,21 +138,15 @@ class OrderService:
         order = self.order_repository.get_for_user(order_id=order_id, user_id=user.id)
         if order is None:
             raise NotFoundError(message="order not found")
+        query_result = self.wechat_pay_client.query_virtual_order(order_id=order.order_id, openid=user.openid)
+        if not query_result.is_paid:
+            raise ValidationError(message="payment not successful")
+        if query_result.amount and query_result.amount != order.amount:
+            raise ValidationError(message="amount mismatch")
 
-        if order.status != "paid":
-            normalized_paid_at = paid_at or datetime.utcnow().isoformat() + "Z"
-            self.order_repository.mark_paid(order=order, paid_at=normalized_paid_at)
-            report = self.report_repository.get_for_user(report_id=order.report_id, user_id=user.id)
-            if report is None:
-                raise NotFoundError(message="report not found")
-            self.report_repository.mark_generating(report=report)
-
-        DistributorService(self.db, self.wechat_pay_client).settle_order_commissions(
-            buyer_user=user,
-            order=order,
-        )
+        self._fulfill_order(order=order, paid_at=paid_at or query_result.paid_at)
         self.db.commit()
-
+        self._notify_wechat_goods_provided(order_id=order.order_id)
         return {
             "amount": order.amount,
             "order_id": order.order_id,
@@ -158,6 +154,46 @@ class OrderService:
             "report_id": order.report_id,
             "status": order.status,
         }
+
+    def fulfill_paid_order(self, *, order_id: str, amount: int = 0, paid_at: str = "", notify_wechat: bool = False):
+        order = self.order_repository.get_by_order_id(order_id=order_id)
+        if order is None:
+            raise NotFoundError(message="order not found")
+        if amount and amount != order.amount:
+            raise ValidationError(message="amount mismatch")
+        self._fulfill_order(order=order, paid_at=paid_at)
+        self.db.commit()
+        if notify_wechat:
+            self._notify_wechat_goods_provided(order_id=order.order_id)
+        return {
+            "amount": order.amount,
+            "order_id": order.order_id,
+            "paid_at": order.paid_at,
+            "report_id": order.report_id,
+            "status": order.status,
+        }
+
+    def _fulfill_order(self, *, order, paid_at: str = ""):
+        if order.status != "paid":
+            normalized_paid_at = paid_at or datetime.utcnow().isoformat() + "Z"
+            self.order_repository.mark_paid(order=order, paid_at=normalized_paid_at)
+            report = self.report_repository.get_for_user(report_id=order.report_id, user_id=order.user_id)
+            if report is None:
+                raise NotFoundError(message="report not found")
+            self.report_repository.mark_generating(report=report)
+
+        buyer_user = self.user_repository.get_by_id(order.user_id)
+        if buyer_user is None:
+            raise NotFoundError(message="user not found")
+        DistributorService(self.db, self.wechat_pay_client).settle_order_commissions(
+            buyer_user=buyer_user,
+            order=order,
+        )
+    def _notify_wechat_goods_provided(self, *, order_id: str):
+        try:
+            self.wechat_pay_client.notify_virtual_goods_provided(order_id=order_id)
+        except Exception as exc:
+            logging.getLogger(__name__).warning("wechat.xpay.notify_provide_goods.failed order_id=%s error=%s", order_id, exc)
 
     def _serialize_order_list_item(self, order):
         report = self.report_repository.get_for_user(report_id=order.report_id, user_id=order.user_id)

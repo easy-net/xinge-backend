@@ -1,4 +1,5 @@
 import json
+import xml.etree.ElementTree as ET
 
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
@@ -14,8 +15,28 @@ from app.api.schemas.mp_orders import (
 from app.core.response import mp_response
 from app.services.order_service import OrderService
 from app.services.payment_notify_service import PaymentNotifyService
+from app.services.xpay_goods_service import XPayGoodsService
 
 router = APIRouter(tags=["mp/orders"])
+
+
+def _parse_notify_payload(body_text: str) -> dict:
+    if not body_text:
+        return {}
+    try:
+        return json.loads(body_text)
+    except json.JSONDecodeError:
+        pass
+    try:
+        root = ET.fromstring(body_text)
+    except ET.ParseError:
+        return {}
+    return {child.tag: child.text or "" for child in root}
+
+
+def _is_xpay_goods_notify(payload: dict) -> bool:
+    event = payload.get("Event") or payload.get("event") or payload.get("MsgType")
+    return event == "xpay_goods_deliver_notify"
 
 
 @router.post("/mp/orders")
@@ -102,10 +123,12 @@ async def wechat_notify(
 ):
     raw_body = await request.body()
     body_text = raw_body.decode("utf-8") if raw_body else ""
-    try:
-        payload = json.loads(body_text) if body_text else {}
-    except json.JSONDecodeError:
-        payload = {}
+    payload = _parse_notify_payload(body_text)
+    if _is_xpay_goods_notify(payload):
+        pay_sig = request.query_params.get("pay_sig", "")
+        if pay_sig:
+            wechat_pay_client.verify_virtual_notify_signature(body_text=body_text, pay_sig=pay_sig)
+        return XPayGoodsService(db, wechat_pay_client).process_goods_deliver_notify(payload)
     if payload.get("resource"):
         payload["_headers"] = dict(request.headers)
         payload["_raw_body"] = body_text

@@ -3,7 +3,7 @@ import hmac
 import json
 
 from app.integrations.wechat_auth import WechatAuthClient, WechatSessionInfo
-from app.integrations.wechat_pay import BalanceResult, PaymentParams, TransferResult, VirtualPaymentParams, WechatPayClient
+from app.integrations.wechat_pay import BalanceResult, PaymentParams, TransferResult, VirtualOrderResult, VirtualPaymentParams, WechatPayClient
 
 
 FAKE_QRCODE_PNG_BASE64 = (
@@ -99,6 +99,22 @@ class FakeWechatPayClient(WechatPayClient):
             status=payload.get("status", "success"),
             paid_at=payload.get("paid_at", "2026-04-20T10:00:00Z"),
         )
+
+    def query_virtual_order(self, *, order_id: str, openid: str = "") -> VirtualOrderResult:
+        del openid
+        return VirtualOrderResult(
+            order_id=order_id,
+            amount=9900,
+            status=3,
+            paid_at="2026-04-20T10:00:00Z",
+            raw={"errcode": 0, "mock": True},
+        )
+
+    def notify_virtual_goods_provided(self, *, order_id: str) -> dict:
+        return {"errcode": 0, "errmsg": "ok", "out_trade_no": order_id}
+
+    def verify_virtual_notify_signature(self, *, body_text: str, pay_sig: str) -> None:
+        del body_text, pay_sig
 
     def transfer_to_balance(self, *, out_bill_no: str, amount: int, openid: str, user_name: str = "") -> TransferResult:
         return TransferResult(

@@ -1,10 +1,7 @@
 from app.core.errors import NotFoundError, ValidationError
-from app.repositories.distributor_repository import DistributorRepository
 from app.repositories.order_repository import OrderRepository
 from app.repositories.payment_callback_repository import PaymentCallbackRepository
-from app.repositories.report_repository import ReportRepository
-from app.repositories.user_repository import UserRepository
-from app.services.distributor_service import DistributorService
+from app.services.order_service import OrderService
 
 
 class PaymentNotifyService:
@@ -13,9 +10,6 @@ class PaymentNotifyService:
         self.wechat_pay_client = wechat_pay_client
         self.order_repository = OrderRepository(db)
         self.payment_callback_repository = PaymentCallbackRepository(db)
-        self.report_repository = ReportRepository(db)
-        self.user_repository = UserRepository(db)
-        self.distributor_repository = DistributorRepository(db)
 
     def process(self, payload: dict):
         notification = self.wechat_pay_client.parse_notification(payload)
@@ -36,18 +30,9 @@ class PaymentNotifyService:
             order_id=notification.order_id,
             payload=payload,
         )
-        if order.status != "paid":
-            self.order_repository.mark_paid(order=order, paid_at=notification.paid_at)
-            report = self.report_repository.get_for_user(report_id=order.report_id, user_id=order.user_id)
-            if report is None:
-                raise NotFoundError(message="report not found")
-            self.report_repository.mark_generating(report=report)
-        buyer_user = self.user_repository.get_by_id(order.user_id)
-        if buyer_user is None:
-            raise NotFoundError(message="user not found")
-        DistributorService(self.db, self.wechat_pay_client).settle_order_commissions(
-            buyer_user=buyer_user,
-            order=order,
+        OrderService(self.db, self.wechat_pay_client).fulfill_paid_order(
+            order_id=notification.order_id,
+            amount=notification.amount,
+            paid_at=notification.paid_at,
         )
-        self.db.commit()
         return {"code": "SUCCESS", "message": "ok"}

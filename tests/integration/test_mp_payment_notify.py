@@ -58,6 +58,33 @@ def test_payment_notify_updates_order_and_report_status_flow(client, db_session)
     assert links["pdf_url"].endswith("/static/report-preview.html?report_id={}&mode=pdf".format(report_id))
 
 
+def test_xpay_goods_deliver_notify_fulfills_order(client, db_session):
+    seed_product_config(db_session)
+    report_response = create_logged_in_report(client)
+    report_id = report_response.json()["data"]["report_id"]
+    order_response = client.post("/api/v1/mp/orders", headers=auth_headers(), json={"report_id": report_id, "amount": 9900})
+    order_id = order_response.json()["data"]["order_id"]
+
+    notify_response = client.post(
+        "/api/v1/mp/orders/notify/wechat",
+        json={
+            "Event": "xpay_goods_deliver_notify",
+            "out_trade_no": order_id,
+        },
+    )
+
+    assert notify_response.status_code == 200
+    assert notify_response.json()["errcode"] == 0
+
+    order_detail = client.post("/api/v1/mp/orders/detail", headers=auth_headers(), json={"order_id": order_id})
+    assert order_detail.status_code == 200
+    assert order_detail.json()["data"]["status"] == "paid"
+
+    links_response = client.post("/api/v1/mp/reports/links", headers=auth_headers(), json={"report_id": report_id})
+    assert links_response.status_code == 200
+    assert links_response.json()["data"]["is_paid"] is True
+
+
 def test_links_for_unpaid_report_only_return_preview(client):
     create_response = create_logged_in_report(client)
     report_id = create_response.json()["data"]["report_id"]

@@ -7,6 +7,7 @@ import time
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Optional
 
 import requests
 from cryptography import x509
@@ -42,6 +43,20 @@ class VirtualPaymentParams:
     productId: str        # 微信虚拟支付后台已发布道具 ID
     goodsPrice: int       # 单价（分）
     outTradeNo: str       # 业务侧订单号
+
+
+@dataclass
+class VirtualOrderResult:
+    order_id: str
+    amount: int
+    status: int
+    paid_at: str
+    wx_order_id: str = ""
+    raw: Optional[dict] = None
+
+    @property
+    def is_paid(self) -> bool:
+        return self.status in {2, 3, 4}
 
 
 @dataclass
@@ -84,6 +99,15 @@ class WechatPayClient:
     ) -> VirtualPaymentParams:
         raise NotImplementedError
 
+    def query_virtual_order(self, *, order_id: str, openid: str = "") -> VirtualOrderResult:
+        raise NotImplementedError
+
+    def notify_virtual_goods_provided(self, *, order_id: str) -> dict:
+        raise NotImplementedError
+
+    def verify_virtual_notify_signature(self, *, body_text: str, pay_sig: str) -> None:
+        raise NotImplementedError
+
     def parse_notification(self, payload: dict) -> PaymentNotification:
         raise NotImplementedError
 
@@ -107,6 +131,8 @@ class RealWechatPayClient(WechatPayClient):
         self.settings = settings
         self.private_key = None
         self.platform_public_key = None
+        self._access_token = ""
+        self._access_token_expires_at = 0.0
         if settings.wechat_private_key_path:
             with open(settings.wechat_private_key_path, "rb") as file:
                 self.private_key = serialization.load_pem_private_key(file.read(), password=None)
@@ -246,6 +272,68 @@ class RealWechatPayClient(WechatPayClient):
     def _sign_virtual_pay_sig(cls, sign_data: str, app_key: str) -> str:
         return cls._sign_virtual_payload("requestVirtualPayment&{}".format(sign_data), app_key)
 
+    def _wechat_access_token(self, *, force_refresh: bool = False) -> str:
+        now = time.time()
+        if not force_refresh and self._access_token and now < self._access_token_expires_at:
+            return self._access_token
+        if not self.settings.wechat_app_id or not self.settings.wechat_app_secret:
+            raise ValidationError(message="WECHAT_APP_ID and WECHAT_APP_SECRET are required for xpay")
+
+        response = requests.get(
+            "https://api.weixin.qq.com/cgi-bin/token",
+            params={
+                "grant_type": "client_credential",
+                "appid": self.settings.wechat_app_id,
+                "secret": self.settings.wechat_app_secret,
+            },
+            timeout=10,
+            verify=self.settings.wechat_verify_ssl,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        if not payload.get("access_token"):
+            raise ValidationError(message="wechat access_token failed: {}".format(payload.get("errmsg") or payload.get("errcode")))
+        expires_in = int(payload.get("expires_in", 7200))
+        self._access_token = payload["access_token"]
+        self._access_token_expires_at = now + max(expires_in - 60, 60)
+        return self._access_token
+
+    def _request_xpay(self, *, endpoint: str, payload: dict) -> dict:
+        app_key = (self.settings.wechat_virtual_app_key or "").strip()
+        if not app_key:
+            raise ValidationError(message="WECHAT_VIRTUAL_APP_KEY is not configured")
+        body_text = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+        uri = "/xpay/{}".format(endpoint)
+        pay_sig = self._sign_virtual_payload("{}&{}".format(uri, body_text), app_key)
+        logger = logging.getLogger(__name__)
+        for attempt in range(2):
+            access_token = self._wechat_access_token(force_refresh=attempt > 0)
+            response = requests.post(
+                "https://api.weixin.qq.com{}".format(uri),
+                params={"access_token": access_token, "pay_sig": pay_sig},
+                data=body_text.encode("utf-8"),
+                timeout=15,
+                verify=self.settings.wechat_verify_ssl,
+                headers={"Content-Type": "application/json; charset=utf-8"},
+            )
+            response.raise_for_status()
+            data = response.json()
+            errcode = data.get("errcode", 0)
+            if errcode in (40001, 42001) and attempt == 0:
+                continue
+            if errcode not in (0, None):
+                logger.warning("wechat.xpay.%s.failed payload=%s response=%s", endpoint, payload, data)
+                raise ValidationError(message="wechat xpay {} failed: {}".format(endpoint, data.get("errmsg") or errcode))
+            return data
+        raise ValidationError(message="wechat access_token is invalid or expired")
+
+    def verify_virtual_notify_signature(self, *, body_text: str, pay_sig: str) -> None:
+        if not pay_sig:
+            raise ValidationError(message="missing xpay pay_sig")
+        expected = self._sign_virtual_payload(body_text, (self.settings.wechat_virtual_app_key or "").strip())
+        if not hmac.compare_digest(expected, pay_sig):
+            raise ValidationError(message="invalid xpay pay_sig")
+
     def create_virtual_prepay(
         self,
         *,
@@ -264,7 +352,7 @@ class RealWechatPayClient(WechatPayClient):
         offer_id = (self.settings.wechat_virtual_offer_id or "").strip()
         app_key = (self.settings.wechat_virtual_app_key or "").strip()
         product_id = (self.settings.wechat_virtual_product_id or "").strip()
-        goods_price = int(self.settings.wechat_virtual_goods_price)
+        goods_price = int(amount)
         env = int(self.settings.wechat_virtual_env)
         if not offer_id:
             raise ValidationError(message="WECHAT_VIRTUAL_OFFER_ID is not configured")
@@ -272,16 +360,11 @@ class RealWechatPayClient(WechatPayClient):
             raise ValidationError(message="WECHAT_VIRTUAL_APP_KEY is not configured")
         if not product_id:
             raise ValidationError(message="WECHAT_VIRTUAL_PRODUCT_ID is not configured")
-        if goods_price <= 0:
-            raise ValidationError(message="WECHAT_VIRTUAL_GOODS_PRICE must be greater than 0")
-        if int(amount) % goods_price != 0:
-            raise ValidationError(message="virtual payment amount must be divisible by WECHAT_VIRTUAL_GOODS_PRICE")
         if not session_key:
             raise ValidationError(message="wechat session_key is missing")
-        buy_quantity = int(amount) // goods_price
         sign_payload = {
             "offerId": offer_id,
-            "buyQuantity": buy_quantity,
+            "buyQuantity": 1,
             "env": env,
             "currencyType": "CNY",
             "productId": product_id,
@@ -303,13 +386,56 @@ class RealWechatPayClient(WechatPayClient):
             paySig=self._sign_virtual_pay_sig(sign_data, app_key),
             signature=self._sign_virtual_payload(sign_data, session_key),
             offerId=offer_id,
-            buyQuantity=buy_quantity,
+            buyQuantity=1,
             env=env,
             currencyType="CNY",
             platform=platform,
             productId=product_id,
             goodsPrice=goods_price,
             outTradeNo=order_id,
+        )
+
+    def query_virtual_order(self, *, order_id: str, openid: str = "") -> VirtualOrderResult:
+        payload = {
+            "offer_id": (self.settings.wechat_virtual_offer_id or "").strip(),
+            "out_trade_no": order_id,
+            "env": int(self.settings.wechat_virtual_env),
+        }
+        if openid:
+            payload["openid"] = openid
+        data = self._request_xpay(endpoint="query_order", payload=payload)
+        order_info = data.get("order_info") or data.get("order") or data
+        amount = int(
+            order_info.get("pay_amount")
+            or order_info.get("amount")
+            or order_info.get("goods_price")
+            or order_info.get("goodsPrice")
+            or 0
+        )
+        status = int(order_info.get("status") or order_info.get("order_state") or order_info.get("trade_state") or 0)
+        paid_at = (
+            order_info.get("pay_time")
+            or order_info.get("paid_at")
+            or order_info.get("create_time")
+            or datetime.utcnow().isoformat() + "Z"
+        )
+        return VirtualOrderResult(
+            order_id=order_info.get("out_trade_no") or order_info.get("order_id") or order_id,
+            wx_order_id=order_info.get("order_id") or order_info.get("wx_order_id") or "",
+            amount=amount,
+            status=status,
+            paid_at=str(paid_at),
+            raw=data,
+        )
+
+    def notify_virtual_goods_provided(self, *, order_id: str) -> dict:
+        return self._request_xpay(
+            endpoint="notify_provide_goods",
+            payload={
+                "offer_id": (self.settings.wechat_virtual_offer_id or "").strip(),
+                "out_trade_no": order_id,
+                "env": int(self.settings.wechat_virtual_env),
+            },
         )
 
     def transfer_to_balance(self, *, out_bill_no: str, amount: int, openid: str, user_name: str = "") -> TransferResult:
@@ -567,6 +693,22 @@ class NullWechatPayClient(WechatPayClient):
             goodsPrice=int(amount),
             outTradeNo=order_id,
         )
+
+    def query_virtual_order(self, *, order_id: str, openid: str = "") -> VirtualOrderResult:
+        del openid
+        return VirtualOrderResult(
+            order_id=order_id,
+            amount=0,
+            status=3,
+            paid_at=datetime.utcnow().isoformat() + "Z",
+            raw={"errcode": 0, "mock": True},
+        )
+
+    def notify_virtual_goods_provided(self, *, order_id: str) -> dict:
+        return {"errcode": 0, "errmsg": "ok", "out_trade_no": order_id}
+
+    def verify_virtual_notify_signature(self, *, body_text: str, pay_sig: str) -> None:
+        del body_text, pay_sig
 
     def parse_notification(self, payload: dict) -> PaymentNotification:
         return PaymentNotification(

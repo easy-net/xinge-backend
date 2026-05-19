@@ -154,27 +154,53 @@ def test_real_wechat_pay_client_builds_virtual_payment_params():
     ).hexdigest()
 
 
-def test_real_wechat_pay_client_uses_configured_goods_price():
+def test_real_wechat_pay_client_queries_virtual_order(monkeypatch):
     settings = Settings(
+        wechat_app_id="wx123",
+        wechat_app_secret="secret123",
         wechat_virtual_offer_id="1450536598",
         wechat_virtual_app_key="wx119f24d9ccbc9c30",
-        wechat_virtual_product_id="report_001",
-        wechat_virtual_goods_price=3300,
         wechat_virtual_env=0,
     )
     client = RealWechatPayClient(settings)
+    captured = {}
 
-    params = client.create_virtual_prepay(
-        order_id="ORDTEST002",
-        amount=9900,
-        openid="openid-user-1",
-        platform="android",
-        session_key="session-key-user-1",
-    )
+    def fake_get(url, params, timeout, verify):
+        return ResponseStub(payload={"access_token": "token-1", "expires_in": 7200})
 
-    sign_data = json.loads(params.signData)
-    assert sign_data["productId"] == "report_001"
-    assert sign_data["goodsPrice"] == 3300
-    assert sign_data["buyQuantity"] == 3
-    assert params.goodsPrice == 3300
-    assert params.buyQuantity == 3
+    def fake_post(url, params, data, timeout, verify, headers):
+        captured["url"] = url
+        captured["params"] = params
+        captured["payload"] = json.loads(data.decode("utf-8"))
+        captured["headers"] = headers
+        return ResponseStub(
+            payload={
+                "errcode": 0,
+                "order_info": {
+                    "out_trade_no": "ORDTEST001",
+                    "order_id": "wx-order-1",
+                    "status": 3,
+                    "pay_amount": 9900,
+                    "pay_time": "2026-05-20T10:00:00Z",
+                },
+            }
+        )
+
+    monkeypatch.setattr(requests, "get", fake_get)
+    monkeypatch.setattr(requests, "post", fake_post)
+
+    result = client.query_virtual_order(order_id="ORDTEST001", openid="openid-user-1")
+
+    assert result.is_paid is True
+    assert result.amount == 9900
+    assert result.wx_order_id == "wx-order-1"
+    assert captured["url"] == "https://api.weixin.qq.com/xpay/query_order"
+    assert captured["payload"]["offer_id"] == "1450536598"
+    assert captured["payload"]["out_trade_no"] == "ORDTEST001"
+    assert captured["payload"]["openid"] == "openid-user-1"
+    body_text = json.dumps(captured["payload"], ensure_ascii=False, separators=(",", ":"))
+    assert captured["params"]["pay_sig"] == hmac.new(
+        b"wx119f24d9ccbc9c30",
+        "/xpay/query_order&{}".format(body_text).encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
