@@ -140,6 +140,7 @@ def test_real_wechat_pay_client_builds_virtual_payment_params():
     assert sign_data["offerId"] == "1450536598"
     assert sign_data["goodsPrice"] == 9900
     assert sign_data["outTradeNo"] == "ORDTEST001"
+    assert "platform" not in sign_data
     assert params.paySig == hmac.new(
         b"wx119f24d9ccbc9c30",
         "requestVirtualPayment&{}".format(params.signData).encode("utf-8"),
