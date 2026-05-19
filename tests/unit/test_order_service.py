@@ -59,6 +59,7 @@ def test_create_order_returns_payment_params(db_session):
     virtual_params = data["virtual_payment_params"]
     assert virtual_params["mode"] == "short_series_goods"
     assert virtual_params["offerId"] == "1450536598"
+    assert virtual_params["productId"] == "report_001"
     assert virtual_params["goodsPrice"] == 9900
     assert virtual_params["outTradeNo"] == data["order_id"]
     assert virtual_params["paySig"]

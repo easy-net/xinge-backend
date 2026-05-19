@@ -69,7 +69,7 @@ class FakeWechatPayClient(WechatPayClient):
             "buyQuantity": 1,
             "env": 0,
             "currencyType": "CNY",
-            "productId": order_id,
+            "productId": "report_001",
             "goodsPrice": int(amount),
             "outTradeNo": order_id,
         }
@@ -84,7 +84,7 @@ class FakeWechatPayClient(WechatPayClient):
             env=0,
             currencyType="CNY",
             platform=platform,
-            productId=order_id,
+            productId="report_001",
             goodsPrice=int(amount),
             outTradeNo=order_id,
         )

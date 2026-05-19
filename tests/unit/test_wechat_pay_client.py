@@ -138,6 +138,7 @@ def test_real_wechat_pay_client_builds_virtual_payment_params():
     assert params.mode == "short_series_goods"
     assert params.offerId == "1450536598"
     assert sign_data["offerId"] == "1450536598"
+    assert sign_data["productId"] == "report_001"
     assert sign_data["goodsPrice"] == 9900
     assert sign_data["outTradeNo"] == "ORDTEST001"
     assert "platform" not in sign_data

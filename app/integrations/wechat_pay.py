@@ -263,11 +263,14 @@ class RealWechatPayClient(WechatPayClient):
         logger = logging.getLogger(__name__)
         offer_id = (self.settings.wechat_virtual_offer_id or "").strip()
         app_key = (self.settings.wechat_virtual_app_key or "").strip()
+        product_id = (self.settings.wechat_virtual_product_id or "").strip()
         env = int(self.settings.wechat_virtual_env)
         if not offer_id:
             raise ValidationError(message="WECHAT_VIRTUAL_OFFER_ID is not configured")
         if not app_key:
             raise ValidationError(message="WECHAT_VIRTUAL_APP_KEY is not configured")
+        if not product_id:
+            raise ValidationError(message="WECHAT_VIRTUAL_PRODUCT_ID is not configured")
         if not session_key:
             raise ValidationError(message="wechat session_key is missing")
         sign_payload = {
@@ -275,7 +278,7 @@ class RealWechatPayClient(WechatPayClient):
             "buyQuantity": 1,
             "env": env,
             "currencyType": "CNY",
-            "productId": order_id,
+            "productId": product_id,
             "goodsPrice": int(amount),
             "outTradeNo": order_id,
         }
@@ -298,7 +301,7 @@ class RealWechatPayClient(WechatPayClient):
             env=env,
             currencyType="CNY",
             platform=platform,
-            productId=order_id,
+            productId=product_id,
             goodsPrice=int(amount),
             outTradeNo=order_id,
         )

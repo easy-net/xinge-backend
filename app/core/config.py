@@ -56,6 +56,7 @@ class Settings:
     # 虚拟支付配置
     wechat_virtual_offer_id: str = "1450536598"      # 微信虚拟支付 OfferID / 支付应用 ID
     wechat_virtual_app_key: str = "wx119f24d9ccbc9c30"       # 微信虚拟支付支付签名密钥
+    wechat_virtual_product_id: str = "report_001"    # 微信虚拟支付后台已发布道具 ID
     wechat_virtual_env: int = 0            # 0=正式环境，1=沙盒环境
     wechat_transfer_scene_id: str = "1005"
     wechat_transfer_remark: str = "fenxiaoshangtixian"
@@ -115,6 +116,7 @@ class Settings:
         fields = {
             "WECHAT_VIRTUAL_OFFER_ID": self.wechat_virtual_offer_id,
             "WECHAT_VIRTUAL_APP_KEY": self.wechat_virtual_app_key,
+            "WECHAT_VIRTUAL_PRODUCT_ID": self.wechat_virtual_product_id,
         }
         return [key for key, value in fields.items() if not value]
 
@@ -160,5 +162,6 @@ def get_settings() -> Settings:
         seed_school_fixtures_on_startup=os.getenv("SEED_SCHOOL_FIXTURES_ON_STARTUP", "true").lower() == "true",
         wechat_virtual_offer_id=env_or_default("WECHAT_VIRTUAL_OFFER_ID", "1450536598"),
         wechat_virtual_app_key=env_or_default("WECHAT_VIRTUAL_APP_KEY", "wx119f24d9ccbc9c30"),
+        wechat_virtual_product_id=env_or_default("WECHAT_VIRTUAL_PRODUCT_ID", "report_001"),
         wechat_virtual_env=int(os.getenv("WECHAT_VIRTUAL_ENV", "0")),
     )
