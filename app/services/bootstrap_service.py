@@ -391,6 +391,13 @@ class BootstrapService:
         inspector = inspect(self.engine)
         self._ensure_columns(
             inspector=inspector,
+            table_name="mp_users",
+            columns={
+                "session_key_ciphertext": "VARCHAR(2048) NOT NULL DEFAULT ''",
+            },
+        )
+        self._ensure_columns(
+            inspector=inspector,
             table_name="distributor_applications",
             columns={
                 "real_name": "VARCHAR(128) NOT NULL DEFAULT ''",

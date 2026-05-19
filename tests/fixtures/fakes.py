@@ -1,5 +1,9 @@
+import hashlib
+import hmac
+import json
+
 from app.integrations.wechat_auth import WechatAuthClient, WechatSessionInfo
-from app.integrations.wechat_pay import BalanceResult, PaymentParams, TransferResult, WechatPayClient
+from app.integrations.wechat_pay import BalanceResult, PaymentParams, TransferResult, VirtualPaymentParams, WechatPayClient
 
 
 FAKE_QRCODE_PNG_BASE64 = (
@@ -14,8 +18,13 @@ class FakeWechatAuthClient(WechatAuthClient):
         self.phone_map = phone_map or {}
 
     def code_to_session(self, login_code: str) -> WechatSessionInfo:
-        openid, unionid = self.session_map[login_code]
-        return WechatSessionInfo(openid=openid, unionid=unionid)
+        session = self.session_map[login_code]
+        if len(session) == 3:
+            openid, unionid, session_key = session
+        else:
+            openid, unionid = session
+            session_key = "session-key-{}".format(openid)
+        return WechatSessionInfo(openid=openid, unionid=unionid, session_key=session_key)
 
     def decrypt_phone_number(self, phone_code: str) -> str:
         return self.phone_map[phone_code]
@@ -44,6 +53,41 @@ class FakeWechatPayClient(WechatPayClient):
             signType="RSA",
             paySign="sign-{}".format(amount),
             prepay_id="prepay-{}".format(order_id),
+        )
+
+    def create_virtual_prepay(
+        self,
+        *,
+        order_id: str,
+        amount: int,
+        openid: str,
+        platform: str = "android",
+        session_key: str = "",
+    ) -> VirtualPaymentParams:
+        sign_payload = {
+            "offerId": "1450536598",
+            "buyQuantity": 1,
+            "env": 0,
+            "currencyType": "CNY",
+            "platform": platform,
+            "productId": order_id,
+            "goodsPrice": int(amount),
+            "outTradeNo": order_id,
+        }
+        sign_data = json.dumps(sign_payload, ensure_ascii=False, separators=(",", ":"))
+        return VirtualPaymentParams(
+            mode="short_series_goods",
+            signData=sign_data,
+            paySig=hmac.new(b"wx119f24d9ccbc9c30", "requestVirtualPayment&{}".format(sign_data).encode("utf-8"), hashlib.sha256).hexdigest(),
+            signature=hmac.new((session_key or "fake-session-key").encode("utf-8"), sign_data.encode("utf-8"), hashlib.sha256).hexdigest(),
+            offerId="1450536598",
+            buyQuantity=1,
+            env=0,
+            currencyType="CNY",
+            platform=platform,
+            productId=order_id,
+            goodsPrice=int(amount),
+            outTradeNo=order_id,
         )
 
     def parse_notification(self, payload: dict):

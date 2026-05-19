@@ -1,4 +1,6 @@
 import base64
+import hashlib
+import hmac
 import json
 import logging
 import time
@@ -28,6 +30,10 @@ class PaymentParams:
 @dataclass
 class VirtualPaymentParams:
     """虚拟支付所需参数，供前端调用 wx.requestVirtualPayment"""
+    mode: str             # 支付模式，如 short_series_goods
+    signData: str         # 参与签名的 JSON 字符串
+    paySig: str           # 使用虚拟支付 app key 生成的支付签名
+    signature: str        # 使用用户 session_key 生成的登录态签名
     offerId: str          # 道具/商品 ID（在微信平台配置）
     buyQuantity: int      # 购买数量，通常为 1
     env: int              # 0=正式环境，1=沙盒
@@ -67,7 +73,15 @@ class WechatPayClient:
     def create_prepay(self, *, order_id: str, amount: int, openid: str) -> PaymentParams:
         raise NotImplementedError
 
-    def create_virtual_prepay(self, *, order_id: str, amount: int, openid: str, platform: str = "android") -> VirtualPaymentParams:
+    def create_virtual_prepay(
+        self,
+        *,
+        order_id: str,
+        amount: int,
+        openid: str,
+        platform: str = "android",
+        session_key: str = "",
+    ) -> VirtualPaymentParams:
         raise NotImplementedError
 
     def parse_notification(self, payload: dict) -> PaymentNotification:
@@ -220,7 +234,27 @@ class RealWechatPayClient(WechatPayClient):
             prepay_id=prepay_id,
         )
 
-    def create_virtual_prepay(self, *, order_id: str, amount: int, openid: str, platform: str = "android") -> VirtualPaymentParams:
+    @staticmethod
+    def _sign_virtual_payload(sign_data: str, key: str) -> str:
+        return hmac.new(
+            key.encode("utf-8"),
+            sign_data.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+
+    @classmethod
+    def _sign_virtual_pay_sig(cls, sign_data: str, app_key: str) -> str:
+        return cls._sign_virtual_payload("requestVirtualPayment&{}".format(sign_data), app_key)
+
+    def create_virtual_prepay(
+        self,
+        *,
+        order_id: str,
+        amount: int,
+        openid: str,
+        platform: str = "android",
+        session_key: str = "",
+    ) -> VirtualPaymentParams:
         """
         虚拟支付无需向微信服务端预下单，参数直接由客户端调用 wx.requestVirtualPayment。
         后端负责生成标准化的虚拟支付参数结构，前端原样透传给微信 API。
@@ -228,7 +262,25 @@ class RealWechatPayClient(WechatPayClient):
         """
         logger = logging.getLogger(__name__)
         offer_id = (self.settings.wechat_virtual_offer_id or "").strip()
+        app_key = (self.settings.wechat_virtual_app_key or "").strip()
         env = int(self.settings.wechat_virtual_env)
+        if not offer_id:
+            raise ValidationError(message="WECHAT_VIRTUAL_OFFER_ID is not configured")
+        if not app_key:
+            raise ValidationError(message="WECHAT_VIRTUAL_APP_KEY is not configured")
+        if not session_key:
+            raise ValidationError(message="wechat session_key is missing")
+        sign_payload = {
+            "offerId": offer_id,
+            "buyQuantity": 1,
+            "env": env,
+            "currencyType": "CNY",
+            "platform": platform,
+            "productId": order_id,
+            "goodsPrice": int(amount),
+            "outTradeNo": order_id,
+        }
+        sign_data = json.dumps(sign_payload, ensure_ascii=False, separators=(",", ":"))
         logger.info(
             "wechat.virtual_pay.build order_id=%s offer_id=%s amount=%s platform=%s env=%s",
             order_id,
@@ -238,6 +290,10 @@ class RealWechatPayClient(WechatPayClient):
             env,
         )
         return VirtualPaymentParams(
+            mode="short_series_goods",
+            signData=sign_data,
+            paySig=self._sign_virtual_pay_sig(sign_data, app_key),
+            signature=self._sign_virtual_payload(sign_data, session_key),
             offerId=offer_id,
             buyQuantity=1,
             env=env,
@@ -470,9 +526,32 @@ class NullWechatPayClient(WechatPayClient):
             prepay_id=order_id,
         )
 
-    def create_virtual_prepay(self, *, order_id: str, amount: int, openid: str, platform: str = "android") -> VirtualPaymentParams:
+    def create_virtual_prepay(
+        self,
+        *,
+        order_id: str,
+        amount: int,
+        openid: str,
+        platform: str = "android",
+        session_key: str = "",
+    ) -> VirtualPaymentParams:
+        sign_payload = {
+            "offerId": "1450536598",
+            "buyQuantity": 1,
+            "env": 1,
+            "currencyType": "CNY",
+            "platform": platform,
+            "productId": order_id,
+            "goodsPrice": int(amount),
+            "outTradeNo": order_id,
+        }
+        sign_data = json.dumps(sign_payload, ensure_ascii=False, separators=(",", ":"))
         return VirtualPaymentParams(
-            offerId="mock-offer-id",
+            mode="short_series_goods",
+            signData=sign_data,
+            paySig=hmac.new(b"mock-virtual-app-key", "requestVirtualPayment&{}".format(sign_data).encode("utf-8"), hashlib.sha256).hexdigest(),
+            signature=hmac.new((session_key or "mock-session-key").encode("utf-8"), sign_data.encode("utf-8"), hashlib.sha256).hexdigest(),
+            offerId="1450536598",
             buyQuantity=1,
             env=1,
             currencyType="CNY",

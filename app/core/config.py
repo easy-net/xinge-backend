@@ -54,7 +54,8 @@ class Settings:
     wechat_verify_ssl: bool = True
     wechat_ca_bundle_path: str = ""
     # 虚拟支付配置
-    wechat_virtual_offer_id: str = ""      # 在微信开放平台/小程序后台配置的道具ID
+    wechat_virtual_offer_id: str = "1450536598"      # 微信虚拟支付 OfferID / 支付应用 ID
+    wechat_virtual_app_key: str = ""       # 微信虚拟支付支付签名密钥
     wechat_virtual_env: int = 0            # 0=正式环境，1=沙盒环境
     wechat_transfer_scene_id: str = "1005"
     wechat_transfer_remark: str = "fenxiaoshangtixian"
@@ -89,6 +90,10 @@ class Settings:
             missing = self.missing_real_payment_fields()
             if missing:
                 raise ValidationError(message="missing real payment settings: {}".format(", ".join(missing)))
+        if self.app_env == "production" and self.payment_mode == "virtual":
+            missing = self.missing_virtual_payment_fields()
+            if missing:
+                raise ValidationError(message="missing virtual payment settings: {}".format(", ".join(missing)))
 
     def missing_real_payment_fields(self):
         fields = {
@@ -105,6 +110,16 @@ class Settings:
 
     def is_real_payment_ready(self) -> bool:
         return self.payment_mode == "real" and not self.missing_real_payment_fields()
+
+    def missing_virtual_payment_fields(self):
+        fields = {
+            "WECHAT_VIRTUAL_OFFER_ID": self.wechat_virtual_offer_id,
+            "WECHAT_VIRTUAL_APP_KEY": self.wechat_virtual_app_key,
+        }
+        return [key for key, value in fields.items() if not value]
+
+    def is_virtual_payment_ready(self) -> bool:
+        return self.payment_mode in {"real", "virtual"} and not self.missing_virtual_payment_fields()
 
 
 @lru_cache(maxsize=1)
@@ -143,6 +158,7 @@ def get_settings() -> Settings:
         unsafe_disable_validation=os.getenv("UNSAFE_DISABLE_VALIDATION", "false").lower() == "true",
         log_current_user_resolution=os.getenv("LOG_CURRENT_USER_RESOLUTION", "false").lower() == "true",
         seed_school_fixtures_on_startup=os.getenv("SEED_SCHOOL_FIXTURES_ON_STARTUP", "true").lower() == "true",
-        wechat_virtual_offer_id=os.getenv("WECHAT_VIRTUAL_OFFER_ID", ""),
+        wechat_virtual_offer_id=env_or_default("WECHAT_VIRTUAL_OFFER_ID", "1450536598"),
+        wechat_virtual_app_key=os.getenv("WECHAT_VIRTUAL_APP_KEY", ""),
         wechat_virtual_env=int(os.getenv("WECHAT_VIRTUAL_ENV", "0")),
     )

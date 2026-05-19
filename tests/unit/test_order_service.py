@@ -55,6 +55,11 @@ def test_create_order_returns_payment_params(db_session):
     data = service.create_order(user=UserStub(user_info["user_id"], "openid-user-1"), report_id=report["report_id"], amount=9900)
 
     assert data["amount"] == 9900
-    assert data["payment_params"]["signType"] == "RSA"
     assert data["order_id"].startswith("ORD")
-
+    virtual_params = data["virtual_payment_params"]
+    assert virtual_params["mode"] == "short_series_goods"
+    assert virtual_params["offerId"] == "1450536598"
+    assert virtual_params["goodsPrice"] == 9900
+    assert virtual_params["outTradeNo"] == data["order_id"]
+    assert virtual_params["paySig"]
+    assert virtual_params["signature"]

@@ -12,6 +12,7 @@ class User(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     openid: Mapped[str] = mapped_column(String(128), unique=True, index=True, nullable=False)
     unionid: Mapped[str] = mapped_column(String(128), default="", nullable=False)
+    session_key_ciphertext: Mapped[str] = mapped_column(String(2048), default="", nullable=False)
     nickname: Mapped[str] = mapped_column(String(255), default="", nullable=False)
     avatar_url: Mapped[str] = mapped_column(String(1024), default="", nullable=False)
     phone_ciphertext: Mapped[str] = mapped_column(String(2048), default="", nullable=False)

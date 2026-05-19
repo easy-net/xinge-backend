@@ -41,8 +41,8 @@ def get_wechat_pay_client(request: Request):
     settings = request.app.state.settings
     from app.integrations.wechat_pay import NullWechatPayClient, RealWechatPayClient
 
-    if settings.is_real_payment_ready():
-        logger.info("wechat_pay_client.init mode=real")
+    if settings.is_real_payment_ready() or settings.is_virtual_payment_ready():
+        logger.info("wechat_pay_client.init mode=%s", settings.payment_mode)
         client = RealWechatPayClient(settings)
     else:
         logger.info("wechat_pay_client.init mode=mock")

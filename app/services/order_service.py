@@ -3,6 +3,8 @@ import secrets
 from datetime import datetime
 
 from app.core.errors import ConflictError, NotFoundError, ValidationError
+from app.core.config import get_settings
+from app.core.security import decrypt_text
 from app.repositories.order_repository import OrderRepository
 from app.repositories.product_config_repository import ProductConfigRepository
 from app.repositories.report_repository import ReportRepository
@@ -10,9 +12,10 @@ from app.services.distributor_service import DistributorService
 
 
 class OrderService:
-    def __init__(self, db, wechat_pay_client):
+    def __init__(self, db, wechat_pay_client, settings=None):
         self.db = db
         self.wechat_pay_client = wechat_pay_client
+        self.settings = settings or get_settings()
         self.order_repository = OrderRepository(db)
         self.product_config_repository = ProductConfigRepository(db)
         self.report_repository = ReportRepository(db)
@@ -44,9 +47,7 @@ class OrderService:
             type(self.wechat_pay_client).__name__,
             platform,
         )
-        payment = self.wechat_pay_client.create_virtual_prepay(
-            order_id=order_id, amount=amount, openid=user.openid, platform=platform
-        )
+        payment = self._create_virtual_payment(user=user, order_id=order_id, amount=amount, platform=platform)
         order = self.order_repository.create(
             order_id=order_id,
             user_id=user.id,
@@ -68,16 +69,7 @@ class OrderService:
         return {
             "amount": order.amount,
             "order_id": order.order_id,
-            "virtual_payment_params": {
-                "offerId": payment.offerId,
-                "buyQuantity": payment.buyQuantity,
-                "env": payment.env,
-                "currencyType": payment.currencyType,
-                "platform": payment.platform,
-                "productId": payment.productId,
-                "goodsPrice": payment.goodsPrice,
-                "outTradeNo": payment.outTradeNo,
-            },
+            "virtual_payment_params": self._serialize_virtual_payment(payment),
             "report_id": order.report_id,
         }
 
@@ -111,25 +103,14 @@ class OrderService:
         if order.status != "pending":
             raise ConflictError(message="order is not pending")
 
-        payment = self.wechat_pay_client.create_virtual_prepay(
-            order_id=order.order_id, amount=order.amount, openid=user.openid, platform=platform
-        )
+        payment = self._create_virtual_payment(user=user, order_id=order.order_id, amount=order.amount, platform=platform)
         self.order_repository.update_prepay(order=order, prepay_id=payment.outTradeNo)
         self.db.commit()
 
         return {
             "amount": order.amount,
             "order_id": order.order_id,
-            "virtual_payment_params": {
-                "offerId": payment.offerId,
-                "buyQuantity": payment.buyQuantity,
-                "env": payment.env,
-                "currencyType": payment.currencyType,
-                "platform": payment.platform,
-                "productId": payment.productId,
-                "goodsPrice": payment.goodsPrice,
-                "outTradeNo": payment.outTradeNo,
-            },
+            "virtual_payment_params": self._serialize_virtual_payment(payment),
             "report_id": order.report_id,
         }
 
@@ -172,4 +153,35 @@ class OrderService:
             "report_type": report.report_type if report else "preview",
             "school_name": (report.form_data or {}).get("school_name") if report else "",
             "status": order.status,
+        }
+
+    def _get_user_session_key(self, user) -> str:
+        session_key_ciphertext = getattr(user, "session_key_ciphertext", "") or ""
+        if not session_key_ciphertext:
+            return ""
+        return decrypt_text(session_key_ciphertext, self.settings.encryption_key)
+
+    def _create_virtual_payment(self, *, user, order_id: str, amount: int, platform: str):
+        return self.wechat_pay_client.create_virtual_prepay(
+            order_id=order_id,
+            amount=amount,
+            openid=user.openid,
+            platform=platform,
+            session_key=self._get_user_session_key(user),
+        )
+
+    def _serialize_virtual_payment(self, payment):
+        return {
+            "mode": payment.mode,
+            "signData": payment.signData,
+            "paySig": payment.paySig,
+            "signature": payment.signature,
+            "offerId": payment.offerId,
+            "buyQuantity": payment.buyQuantity,
+            "env": payment.env,
+            "currencyType": payment.currencyType,
+            "platform": payment.platform,
+            "productId": payment.productId,
+            "goodsPrice": payment.goodsPrice,
+            "outTradeNo": payment.outTradeNo,
         }

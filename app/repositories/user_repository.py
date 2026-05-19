@@ -92,6 +92,14 @@ class UserRepository:
         self.db.flush()
         return user
 
+    def update_wechat_session(self, *, user: User, unionid: str = "", session_key_ciphertext: str = "") -> User:
+        if unionid:
+            user.unionid = unionid
+        if session_key_ciphertext:
+            user.session_key_ciphertext = session_key_ciphertext
+        self.db.flush()
+        return user
+
     def update_profile(self, *, user: User, nickname=None, avatar_url=None) -> User:
         if nickname is not None:
             user.nickname = nickname

@@ -20,13 +20,14 @@ router = APIRouter(tags=["mp/orders"])
 
 @router.post("/mp/orders")
 def create_order(
+    request: Request,
     body: MPCreateOrderReq,
     current=Depends(get_current_user),
     db: Session = Depends(get_db_session),
     wechat_pay_client=Depends(get_wechat_pay_client),
 ):
     user, _ = current
-    data = OrderService(db, wechat_pay_client).create_order(
+    data = OrderService(db, wechat_pay_client, settings=request.app.state.settings).create_order(
         user=user,
         report_id=body.report_id,
         amount=body.amount,
@@ -37,37 +38,40 @@ def create_order(
 
 @router.post("/mp/orders/detail")
 def order_detail(
+    request: Request,
     body: MPOrderDetailReq,
     current=Depends(get_current_user),
     db: Session = Depends(get_db_session),
     wechat_pay_client=Depends(get_wechat_pay_client),
 ):
     user, _ = current
-    data = OrderService(db, wechat_pay_client).detail(user=user, order_id=body.order_id)
+    data = OrderService(db, wechat_pay_client, settings=request.app.state.settings).detail(user=user, order_id=body.order_id)
     return mp_response(data=data, user_info={"open_id": user.openid, "user_id": user.id})
 
 
 @router.post("/mp/orders/list")
 def order_list(
+    request: Request,
     body: MPOrderListReq,
     current=Depends(get_current_user),
     db: Session = Depends(get_db_session),
     wechat_pay_client=Depends(get_wechat_pay_client),
 ):
     user, _ = current
-    data = OrderService(db, wechat_pay_client).list_orders(user=user, page=body.page, page_size=body.page_size)
+    data = OrderService(db, wechat_pay_client, settings=request.app.state.settings).list_orders(user=user, page=body.page, page_size=body.page_size)
     return mp_response(data=data, user_info={"open_id": user.openid, "user_id": user.id})
 
 
 @router.post("/mp/orders/pay")
 def order_pay(
+    request: Request,
     body: MPOrderPayReq,
     current=Depends(get_current_user),
     db: Session = Depends(get_db_session),
     wechat_pay_client=Depends(get_wechat_pay_client),
 ):
     user, _ = current
-    data = OrderService(db, wechat_pay_client).repay_order(
+    data = OrderService(db, wechat_pay_client, settings=request.app.state.settings).repay_order(
         user=user, order_id=body.order_id, platform=body.platform or "android"
     )
     return mp_response(data=data, user_info={"open_id": user.openid, "user_id": user.id})
@@ -75,13 +79,14 @@ def order_pay(
 
 @router.post("/mp/orders/confirm")
 def order_confirm(
+    request: Request,
     body: MPOrderConfirmReq,
     current=Depends(get_current_user),
     db: Session = Depends(get_db_session),
     wechat_pay_client=Depends(get_wechat_pay_client),
 ):
     user, _ = current
-    data = OrderService(db, wechat_pay_client).confirm_paid(
+    data = OrderService(db, wechat_pay_client, settings=request.app.state.settings).confirm_paid(
         user=user,
         order_id=body.order_id,
         paid_at=body.paid_at or "",

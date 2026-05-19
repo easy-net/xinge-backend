@@ -1,4 +1,6 @@
 import json
+import hmac
+import hashlib
 
 import pytest
 import requests
@@ -114,3 +116,37 @@ def test_query_balance_reads_available_and_pending_amount(monkeypatch):
     assert result.account_type == "OPERATION"
     assert result.available_amount == 9999
     assert result.pending_amount == 123
+
+
+def test_real_wechat_pay_client_builds_virtual_payment_params():
+    settings = Settings(
+        wechat_virtual_offer_id="1450536598",
+        wechat_virtual_app_key="wx119f24d9ccbc9c30",
+        wechat_virtual_env=0,
+    )
+    client = RealWechatPayClient(settings)
+
+    params = client.create_virtual_prepay(
+        order_id="ORDTEST001",
+        amount=9900,
+        openid="openid-user-1",
+        platform="android",
+        session_key="session-key-user-1",
+    )
+
+    sign_data = json.loads(params.signData)
+    assert params.mode == "short_series_goods"
+    assert params.offerId == "1450536598"
+    assert sign_data["offerId"] == "1450536598"
+    assert sign_data["goodsPrice"] == 9900
+    assert sign_data["outTradeNo"] == "ORDTEST001"
+    assert params.paySig == hmac.new(
+        b"wx119f24d9ccbc9c30",
+        "requestVirtualPayment&{}".format(params.signData).encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    assert params.signature == hmac.new(
+        b"session-key-user-1",
+        params.signData.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()

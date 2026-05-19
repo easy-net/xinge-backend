@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 class WechatSessionInfo:
     openid: str
     unionid: str = ""
+    session_key: str = ""
 
 
 class WechatAuthClient:
@@ -165,7 +166,11 @@ class RealWechatAuthClient(WechatAuthClient):
         logger.info("wechat auth response: %s", payload)
         if "openid" not in payload:
             raise AuthError(message=self._extract_wechat_error(payload))
-        return WechatSessionInfo(openid=payload["openid"], unionid=payload.get("unionid", ""))
+        return WechatSessionInfo(
+            openid=payload["openid"],
+            unionid=payload.get("unionid", ""),
+            session_key=payload.get("session_key", ""),
+        )
 
     def decrypt_phone_number(self, phone_code: str) -> str:
         for attempt in range(2):

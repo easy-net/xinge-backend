@@ -28,6 +28,13 @@ class AuthService:
             user = self.user_repository.create_user(openid=session_info.openid, unionid=session_info.unionid)
             is_new_user = True
 
+        self.user_repository.update_wechat_session(
+            user=user,
+            unionid=session_info.unionid,
+            session_key_ciphertext=encrypt_text(session_info.session_key, self.settings.encryption_key)
+            if session_info.session_key else "",
+        )
+
         self._bind_entry_distributor_if_needed(
             user=user,
             parent_distributor_id=parent_distributor_id,

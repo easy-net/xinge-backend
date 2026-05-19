@@ -181,9 +181,10 @@ WECHAT_PLATFORM_CERT_PATH=./xinge-backend/payment-backend/certs/wechatpay_platfo
 
 Current payment behavior:
 
-- `/mp/orders` returns real `payment_params` for `wx.requestPayment()` when `PAYMENT_MODE=real` and all required WeChat Pay config is present.
+- `/mp/orders` returns `virtual_payment_params` for `wx.requestVirtualPayment()`. The payload includes `mode`, `signData`, `paySig`, and `signature`; the mini program should pass these fields through to WeChat.
+- Virtual payment uses `WECHAT_VIRTUAL_OFFER_ID` (default `1450536598`), `WECHAT_VIRTUAL_APP_KEY`, and `WECHAT_VIRTUAL_ENV`.
 - `/mp/orders/notify/wechat` accepts both the existing mock callback body and the real WeChat Pay v3 callback body.
-- if payment config is incomplete, the backend automatically falls back to mock payment params.
+- if virtual payment config is incomplete outside production, the backend can still fall back to mock payment params.
 
 ## Dev Auth Bypass
 
