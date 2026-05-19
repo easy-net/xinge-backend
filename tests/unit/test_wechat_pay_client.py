@@ -152,3 +152,29 @@ def test_real_wechat_pay_client_builds_virtual_payment_params():
         params.signData.encode("utf-8"),
         hashlib.sha256,
     ).hexdigest()
+
+
+def test_real_wechat_pay_client_uses_configured_goods_price():
+    settings = Settings(
+        wechat_virtual_offer_id="1450536598",
+        wechat_virtual_app_key="wx119f24d9ccbc9c30",
+        wechat_virtual_product_id="report_001",
+        wechat_virtual_goods_price=3300,
+        wechat_virtual_env=0,
+    )
+    client = RealWechatPayClient(settings)
+
+    params = client.create_virtual_prepay(
+        order_id="ORDTEST002",
+        amount=9900,
+        openid="openid-user-1",
+        platform="android",
+        session_key="session-key-user-1",
+    )
+
+    sign_data = json.loads(params.signData)
+    assert sign_data["productId"] == "report_001"
+    assert sign_data["goodsPrice"] == 3300
+    assert sign_data["buyQuantity"] == 3
+    assert params.goodsPrice == 3300
+    assert params.buyQuantity == 3

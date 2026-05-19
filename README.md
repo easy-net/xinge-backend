@@ -182,7 +182,7 @@ WECHAT_PLATFORM_CERT_PATH=./xinge-backend/payment-backend/certs/wechatpay_platfo
 Current payment behavior:
 
 - `/mp/orders` returns `virtual_payment_params` for `wx.requestVirtualPayment()`. The payload includes `mode`, `signData`, `paySig`, and `signature`; the mini program should pass these fields through to WeChat.
-- Virtual payment uses `WECHAT_VIRTUAL_OFFER_ID` (default `1450536598`), `WECHAT_VIRTUAL_APP_KEY`, and `WECHAT_VIRTUAL_ENV`.
+- Virtual payment uses `WECHAT_VIRTUAL_OFFER_ID` (default `1450536598`), `WECHAT_VIRTUAL_APP_KEY`, `WECHAT_VIRTUAL_PRODUCT_ID`, `WECHAT_VIRTUAL_GOODS_PRICE`, and `WECHAT_VIRTUAL_ENV`. `WECHAT_VIRTUAL_GOODS_PRICE` must match the published product price configured in WeChat; `buyQuantity` is derived from the order amount.
 - `/mp/orders/notify/wechat` accepts both the existing mock callback body and the real WeChat Pay v3 callback body.
 - if virtual payment config is incomplete outside production, the backend can still fall back to mock payment params.
 

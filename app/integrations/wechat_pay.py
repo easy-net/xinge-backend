@@ -39,7 +39,7 @@ class VirtualPaymentParams:
     env: int              # 0=正式环境，1=沙盒
     currencyType: str     # "CNY"
     platform: str         # "android" 或 "ios"
-    productId: str        # 透传的订单 ID，用于对账
+    productId: str        # 微信虚拟支付后台已发布道具 ID
     goodsPrice: int       # 单价（分）
     outTradeNo: str       # 业务侧订单号
 
@@ -264,6 +264,7 @@ class RealWechatPayClient(WechatPayClient):
         offer_id = (self.settings.wechat_virtual_offer_id or "").strip()
         app_key = (self.settings.wechat_virtual_app_key or "").strip()
         product_id = (self.settings.wechat_virtual_product_id or "").strip()
+        goods_price = int(self.settings.wechat_virtual_goods_price)
         env = int(self.settings.wechat_virtual_env)
         if not offer_id:
             raise ValidationError(message="WECHAT_VIRTUAL_OFFER_ID is not configured")
@@ -271,15 +272,20 @@ class RealWechatPayClient(WechatPayClient):
             raise ValidationError(message="WECHAT_VIRTUAL_APP_KEY is not configured")
         if not product_id:
             raise ValidationError(message="WECHAT_VIRTUAL_PRODUCT_ID is not configured")
+        if goods_price <= 0:
+            raise ValidationError(message="WECHAT_VIRTUAL_GOODS_PRICE must be greater than 0")
+        if int(amount) % goods_price != 0:
+            raise ValidationError(message="virtual payment amount must be divisible by WECHAT_VIRTUAL_GOODS_PRICE")
         if not session_key:
             raise ValidationError(message="wechat session_key is missing")
+        buy_quantity = int(amount) // goods_price
         sign_payload = {
             "offerId": offer_id,
-            "buyQuantity": 1,
+            "buyQuantity": buy_quantity,
             "env": env,
             "currencyType": "CNY",
             "productId": product_id,
-            "goodsPrice": int(amount),
+            "goodsPrice": goods_price,
             "outTradeNo": order_id,
         }
         sign_data = json.dumps(sign_payload, ensure_ascii=False, separators=(",", ":"))
@@ -297,12 +303,12 @@ class RealWechatPayClient(WechatPayClient):
             paySig=self._sign_virtual_pay_sig(sign_data, app_key),
             signature=self._sign_virtual_payload(sign_data, session_key),
             offerId=offer_id,
-            buyQuantity=1,
+            buyQuantity=buy_quantity,
             env=env,
             currencyType="CNY",
             platform=platform,
             productId=product_id,
-            goodsPrice=int(amount),
+            goodsPrice=goods_price,
             outTradeNo=order_id,
         )
 
@@ -542,7 +548,7 @@ class NullWechatPayClient(WechatPayClient):
             "buyQuantity": 1,
             "env": 1,
             "currencyType": "CNY",
-            "productId": order_id,
+            "productId": "report_001",
             "goodsPrice": int(amount),
             "outTradeNo": order_id,
         }
@@ -557,7 +563,7 @@ class NullWechatPayClient(WechatPayClient):
             env=1,
             currencyType="CNY",
             platform=platform,
-            productId=order_id,
+            productId="report_001",
             goodsPrice=int(amount),
             outTradeNo=order_id,
         )
