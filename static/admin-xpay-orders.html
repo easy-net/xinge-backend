@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>虚拟订单查询</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: rgba(255,255,255,0.96);
+      --text: #14213d;
+      --muted: #667085;
+      --line: #e6ebf2;
+      --primary: #1768ff;
+      --primary-deep: #0f52d6;
+      --success: #12805c;
+      --danger: #c2410c;
+      --shadow: 0 18px 50px rgba(20, 33, 61, 0.08);
+      --radius: 20px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(23, 104, 255, 0.12), transparent 28%),
+        linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
+    }
+    .page { max-width: 1180px; margin: 0 auto; padding: 32px 20px 48px; }
+    .hero { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 24px; }
+    .hero h1 { margin: 0; font-size: 32px; }
+    .hero p { margin: 10px 0 0; color: var(--muted); font-size: 14px; line-height: 1.7; }
+    .hero-meta, .notice, .toolbar, .card {
+      background: var(--card);
+      box-shadow: var(--shadow);
+      border-radius: var(--radius);
+    }
+    .hero-meta { padding: 14px 18px; color: var(--muted); font-size: 13px; white-space: nowrap; }
+    .notice { padding: 18px 20px; margin-bottom: 18px; line-height: 1.8; font-size: 14px; }
+    .notice strong { color: var(--primary-deep); }
+    .toolbar {
+      display: grid;
+      grid-template-columns: minmax(280px, 1fr) minmax(220px, 0.6fr) auto;
+      gap: 12px;
+      align-items: end;
+      padding: 18px;
+      margin-bottom: 18px;
+    }
+    label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+    input {
+      width: 100%;
+      height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 0 14px;
+      font-size: 14px;
+      background: #fff;
+      color: var(--text);
+    }
+    button {
+      height: 44px;
+      min-width: 120px;
+      border: 1px solid var(--primary);
+      border-radius: 12px;
+      padding: 0 18px;
+      color: #fff;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-deep) 100%);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+    .card { padding: 20px; }
+    .label { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+    .value { font-size: 24px; font-weight: 800; word-break: break-all; }
+    .sub { color: var(--muted); font-size: 13px; margin-top: 8px; line-height: 1.7; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      height: 28px;
+      padding: 0 10px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      background: rgba(102, 112, 133, 0.12);
+      color: var(--muted);
+    }
+    .pill.success { background: rgba(18, 128, 92, 0.12); color: var(--success); }
+    .pill.danger { background: rgba(194, 65, 12, 0.12); color: var(--danger); }
+    .section-title { margin: 0 0 12px; font-size: 18px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 14px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { width: 180px; color: var(--muted); font-size: 12px; font-weight: 700; }
+    td { font-size: 14px; word-break: break-all; }
+    pre {
+      margin: 0;
+      padding: 16px;
+      border-radius: 14px;
+      background: #101828;
+      color: #e6edf7;
+      overflow: auto;
+      line-height: 1.7;
+      font-size: 12px;
+      max-height: 420px;
+    }
+    .empty { color: var(--muted); text-align: center; padding: 36px 0; }
+    @media (max-width: 780px) {
+      .hero, .toolbar { display: block; }
+      .hero-meta { margin-top: 14px; white-space: normal; }
+      .field, button { margin-top: 12px; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="hero">
+      <div>
+        <h1>虚拟订单查询</h1>
+        <p>用于按商户订单号查询微信 XPay 虚拟支付订单，并同步查看本地订单、报告和用户关联信息。</p>
+      </div>
+      <div class="hero-meta" id="heroMeta">等待输入订单号</div>
+    </div>
+
+    <div class="notice">
+      <strong>使用场景：</strong>支付后用户没有进入报告生成页、微信发货通知未到达、或需要核对 <code>query_order</code> 返回状态时，在这里输入后端订单号 <code>ORD...</code> 查询。
+    </div>
+
+    <div class="toolbar">
+      <div class="field">
+        <label for="orderInput">商户订单号 out_trade_no</label>
+        <input id="orderInput" placeholder="例如 ORD93CFED18C2BBB4570D87" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label for="openidInput">openid，可选</label>
+        <input id="openidInput" placeholder="不填也可查询" autocomplete="off" />
+      </div>
+      <button id="queryButton">查询订单</button>
+    </div>
+
+    <div class="grid" id="summaryGrid"></div>
+
+    <div class="card" id="detailCard">
+      <h2 class="section-title">查询结果</h2>
+      <div class="empty">还没有查询结果</div>
+    </div>
+  </div>
+
+  <script>
+    const state = { result: null, loading: false };
+    const heroMeta = document.getElementById("heroMeta");
+    const queryButton = document.getElementById("queryButton");
+    const orderInput = document.getElementById("orderInput");
+    const openidInput = document.getElementById("openidInput");
+    const summaryGrid = document.getElementById("summaryGrid");
+    const detailCard = document.getElementById("detailCard");
+
+    function formatFen(fen) {
+      return `¥ ${(Number(fen || 0) / 100).toFixed(2)}`;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function statusText(status) {
+      const map = {
+        1: "未支付",
+        2: "已支付",
+        3: "已发货",
+        4: "已退款/已结束",
+      };
+      return map[Number(status)] || `未知状态 ${status}`;
+    }
+
+    function renderEmpty(message) {
+      summaryGrid.innerHTML = "";
+      detailCard.innerHTML = `<h2 class="section-title">查询结果</h2><div class="empty">${escapeHtml(message)}</div>`;
+    }
+
+    function renderResult(payload) {
+      const data = payload.data || {};
+      const xpay = data.xpay_order || {};
+      const local = data.local_order || {};
+      const report = data.report || {};
+      const user = data.user || {};
+
+      summaryGrid.innerHTML = `
+        <div class="card">
+          <div class="label">微信支付状态</div>
+          <div class="value">
+            <span class="pill ${xpay.is_paid ? "success" : "danger"}">${escapeHtml(statusText(xpay.status))}</span>
+          </div>
+          <div class="sub">status=${escapeHtml(xpay.status)}，is_paid=${xpay.is_paid ? "true" : "false"}</div>
+        </div>
+        <div class="card">
+          <div class="label">微信订单金额</div>
+          <div class="value">${formatFen(xpay.amount)}</div>
+          <div class="sub">本地订单金额：${local.amount !== undefined ? formatFen(local.amount) : "未找到本地订单"}</div>
+        </div>
+        <div class="card">
+          <div class="label">本地订单状态</div>
+          <div class="value">${escapeHtml(local.status || "未找到")}</div>
+          <div class="sub">报告状态：${escapeHtml(report.status || "无")}</div>
+        </div>
+      `;
+
+      detailCard.innerHTML = `
+        <h2 class="section-title">订单详情</h2>
+        <table>
+          <tbody>
+            <tr><th>商户订单号</th><td>${escapeHtml(xpay.order_id || data.query?.order_id || "")}</td></tr>
+            <tr><th>微信订单号</th><td>${escapeHtml(xpay.wx_order_id || "")}</td></tr>
+            <tr><th>支付时间</th><td>${escapeHtml(xpay.paid_at || "")}</td></tr>
+            <tr><th>本地订单</th><td>${local.order_id ? escapeHtml(JSON.stringify(local, null, 2)) : "未找到本地订单"}</td></tr>
+            <tr><th>报告</th><td>${report.report_id ? escapeHtml(`${report.name || ""} / ${report.school_name || ""} / ${report.status || ""}`) : "无"}</td></tr>
+            <tr><th>用户</th><td>${user.user_id ? escapeHtml(`${user.user_id} / ${user.nickname || ""} / ${user.openid || ""}`) : "无"}</td></tr>
+          </tbody>
+        </table>
+        <h2 class="section-title" style="margin-top:20px;">微信原始返回</h2>
+        <pre>${escapeHtml(JSON.stringify(xpay.raw || {}, null, 2))}</pre>
+      `;
+    }
+
+    async function queryOrder() {
+      const orderId = orderInput.value.trim();
+      const openid = openidInput.value.trim();
+      if (!orderId) {
+        renderEmpty("请输入商户订单号");
+        return;
+      }
+
+      state.loading = true;
+      queryButton.disabled = true;
+      heroMeta.textContent = "正在查询微信虚拟订单...";
+      try {
+        const params = new URLSearchParams({ order_id: orderId });
+        if (openid) params.set("openid", openid);
+        const response = await fetch(`/api/v1/admin/xpay/orders/query?${params.toString()}`);
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || payload.code !== 0) {
+          throw new Error(payload.message || `请求失败: ${response.status}`);
+        }
+        state.result = payload;
+        heroMeta.textContent = `查询完成：${new Date().toLocaleString("zh-CN", { hour12: false })}`;
+        renderResult(payload);
+      } catch (error) {
+        heroMeta.textContent = error.message || "查询失败";
+        renderEmpty(error.message || "查询失败");
+      } finally {
+        state.loading = false;
+        queryButton.disabled = false;
+      }
+    }
+
+    queryButton.addEventListener("click", queryOrder);
+    orderInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") queryOrder();
+    });
+    openidInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") queryOrder();
+    });
+  </script>
+</body>
+</html>
