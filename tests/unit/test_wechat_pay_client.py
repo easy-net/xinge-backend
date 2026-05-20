@@ -177,8 +177,8 @@ def test_real_wechat_pay_client_queries_virtual_order(monkeypatch):
             payload={
                 "errcode": 0,
                 "order_info": {
-                    "out_trade_no": "ORDTEST001",
-                    "order_id": "wx-order-1",
+                    "order_id": "ORDTEST001",
+                    "wx_order_id": "wx-order-1",
                     "status": 3,
                     "pay_amount": 9900,
                     "pay_time": "2026-05-20T10:00:00Z",
@@ -196,7 +196,7 @@ def test_real_wechat_pay_client_queries_virtual_order(monkeypatch):
     assert result.wx_order_id == "wx-order-1"
     assert captured["url"] == "https://api.weixin.qq.com/xpay/query_order"
     assert captured["payload"]["offer_id"] == "1450536598"
-    assert captured["payload"]["out_trade_no"] == "ORDTEST001"
+    assert captured["payload"]["order_id"] == "ORDTEST001"
     assert captured["payload"]["openid"] == "openid-user-1"
     body_text = json.dumps(captured["payload"], ensure_ascii=False, separators=(",", ":"))
     assert captured["params"]["pay_sig"] == hmac.new(

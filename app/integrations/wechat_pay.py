@@ -398,7 +398,7 @@ class RealWechatPayClient(WechatPayClient):
     def query_virtual_order(self, *, order_id: str, openid: str = "") -> VirtualOrderResult:
         payload = {
             "offer_id": (self.settings.wechat_virtual_offer_id or "").strip(),
-            "out_trade_no": order_id,
+            "order_id": order_id,
             "env": int(self.settings.wechat_virtual_env),
         }
         if openid:
@@ -420,8 +420,8 @@ class RealWechatPayClient(WechatPayClient):
             or datetime.utcnow().isoformat() + "Z"
         )
         return VirtualOrderResult(
-            order_id=order_info.get("out_trade_no") or order_info.get("order_id") or order_id,
-            wx_order_id=order_info.get("order_id") or order_info.get("wx_order_id") or "",
+            order_id=order_info.get("order_id") or order_info.get("out_trade_no") or order_id,
+            wx_order_id=order_info.get("wx_order_id") or "",
             amount=amount,
             status=status,
             paid_at=str(paid_at),
@@ -433,7 +433,7 @@ class RealWechatPayClient(WechatPayClient):
             endpoint="notify_provide_goods",
             payload={
                 "offer_id": (self.settings.wechat_virtual_offer_id or "").strip(),
-                "out_trade_no": order_id,
+                "order_id": order_id,
                 "env": int(self.settings.wechat_virtual_env),
             },
         )
