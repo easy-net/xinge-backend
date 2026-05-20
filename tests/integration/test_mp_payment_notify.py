@@ -62,7 +62,7 @@ def test_xpay_goods_deliver_notify_fulfills_order(client, db_session):
     seed_product_config(db_session)
     report_response = create_logged_in_report(client)
     report_id = report_response.json()["data"]["report_id"]
-    order_response = client.post("/api/v1/mp/orders", headers=auth_headers(), json={"report_id": report_id, "amount": 9900})
+    order_response = client.post("/api/v1/mp/orders/virtual", headers=auth_headers(), json={"report_id": report_id, "amount": 9900})
     order_id = order_response.json()["data"]["order_id"]
 
     notify_response = client.post(

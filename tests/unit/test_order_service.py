@@ -56,6 +56,45 @@ def test_create_order_returns_payment_params(db_session):
 
     assert data["amount"] == 9900
     assert data["order_id"].startswith("ORD")
+    assert data["payment_provider"] == "wechat"
+    payment_params = data["payment_params"]
+    assert payment_params["timeStamp"] == "1713600000"
+    assert payment_params["nonceStr"]
+    assert payment_params["package"].startswith("prepay_id=")
+    assert payment_params["signType"] == "RSA"
+    assert payment_params["paySign"]
+
+
+def test_create_virtual_order_returns_virtual_payment_params(db_session):
+    from app.services.auth_service import AuthService
+    from tests.fixtures.fakes import FakeWechatAuthClient
+
+    class Context:
+        login_code = "login-code-user-1"
+        system_version = "iOS 17.0"
+        device_uuid = "device-1"
+
+    auth_service = AuthService(
+        db_session,
+        FakeWechatAuthClient(session_map={"login-code-user-1": ("openid-user-1", "unionid-user-1")}),
+    )
+    _, user_info = auth_service.login(Context(), None)
+
+    from app.services.report_service import ReportService
+
+    report_service = ReportService(db_session)
+    report = report_service.create_report(
+        user=UserStub(user_info["user_id"], "openid-user-1"),
+        payload={"name": "张三", "school_name": "北京大学"},
+    )
+    seed_product_config(db_session)
+
+    service = OrderService(db_session, FakeWechatPayClient())
+    data = service.create_virtual_order(user=UserStub(user_info["user_id"], "openid-user-1"), report_id=report["report_id"], amount=9900)
+
+    assert data["amount"] == 9900
+    assert data["order_id"].startswith("ORD")
+    assert data["payment_provider"] == "wechat_virtual"
     virtual_params = data["virtual_payment_params"]
     assert virtual_params["mode"] == "short_series_goods"
     assert virtual_params["offerId"] == "1450536598"

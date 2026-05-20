@@ -36,6 +36,31 @@ def test_mp_orders_create_returns_payment_params(client, db_session):
     data = response.json()["data"]
     assert data["report_id"] == report_id
     assert data["amount"] == 9900
+    assert data["payment_provider"] == "wechat"
+    payment_params = data["payment_params"]
+    assert payment_params["timeStamp"] == "1713600000"
+    assert payment_params["nonceStr"]
+    assert payment_params["package"].startswith("prepay_id=")
+    assert payment_params["signType"] == "RSA"
+    assert payment_params["paySign"]
+
+
+def test_mp_orders_virtual_create_returns_virtual_payment_params(client, db_session):
+    seed_product_config(db_session)
+    report_response = create_logged_in_report(client)
+    report_id = report_response.json()["data"]["report_id"]
+
+    response = client.post(
+        "/api/v1/mp/orders/virtual",
+        headers=auth_headers(),
+        json={"report_id": report_id, "amount": 9900},
+    )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["report_id"] == report_id
+    assert data["amount"] == 9900
+    assert data["payment_provider"] == "wechat_virtual"
     virtual_params = data["virtual_payment_params"]
     assert virtual_params["mode"] == "short_series_goods"
     assert virtual_params["offerId"] == "1450536598"

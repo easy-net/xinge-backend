@@ -23,24 +23,44 @@ class OrderService:
         self.user_repository = UserRepository(db)
 
     def create_order(self, *, user, report_id: int, amount: int, platform: str = "android"):
-        report = self.report_repository.get_for_user(report_id=report_id, user_id=user.id)
-        if report is None:
-            raise NotFoundError(message="report not found")
-
-        config = self.product_config_repository.get_current()
-        if config is None:
-            raise NotFoundError(message="product config not found")
-        if amount != config.current_amount:
-            raise ValidationError(message="amount mismatch")
-
-        pending_order = self.order_repository.get_pending_for_report(user_id=user.id, report_id=report_id)
-        if pending_order is not None:
-            raise ConflictError(message="duplicate pending order")
-
-        order_id = "ORD{}".format(secrets.token_hex(10).upper())
+        report, order_id = self._prepare_new_order(user=user, report_id=report_id, amount=amount)
         logger = logging.getLogger(__name__)
         logger.info(
-            "order.create.start order_id=%s user_id=%s report_id=%s amount=%s openid=%s pay_client=%s platform=%s",
+            "order.create.start order_id=%s user_id=%s report_id=%s amount=%s openid=%s pay_client=%s platform=%s channel=wechat",
+            order_id,
+            user.id,
+            report_id,
+            amount,
+            "{}***{}".format(user.openid[:4], user.openid[-4:]) if user.openid and len(user.openid) >= 8 else bool(user.openid),
+            type(self.wechat_pay_client).__name__,
+            platform,
+        )
+        payment = self.wechat_pay_client.create_prepay(order_id=order_id, amount=amount, openid=user.openid)
+        order = self.order_repository.create(
+            order_id=order_id,
+            user_id=user.id,
+            report_id=report_id,
+            amount=amount,
+            channel="wechat",
+            status="pending",
+            prepay_id=payment.prepay_id,
+        )
+        self.report_repository.update_status(report=report, status="unpaid")
+        self.db.commit()
+        logger.info("order.create.success order_id=%s prepay_id=%s channel=wechat", order.order_id, payment.prepay_id)
+        return {
+            "amount": order.amount,
+            "order_id": order.order_id,
+            "payment_provider": "wechat",
+            "payment_params": self._serialize_payment(payment),
+            "report_id": order.report_id,
+        }
+
+    def create_virtual_order(self, *, user, report_id: int, amount: int, platform: str = "android"):
+        report, order_id = self._prepare_new_order(user=user, report_id=report_id, amount=amount)
+        logger = logging.getLogger(__name__)
+        logger.info(
+            "order.create.start order_id=%s user_id=%s report_id=%s amount=%s openid=%s pay_client=%s platform=%s channel=wechat_virtual",
             order_id,
             user.id,
             report_id,
@@ -62,7 +82,7 @@ class OrderService:
         self.report_repository.update_status(report=report, status="unpaid")
         self.db.commit()
         logger.info(
-            "order.create.success order_id=%s offer_id=%s platform=%s env=%s",
+            "order.create.success order_id=%s offer_id=%s platform=%s env=%s channel=wechat_virtual",
             order.order_id,
             payment.offerId,
             payment.platform,
@@ -83,6 +103,24 @@ class OrderService:
             "virtual_payment_params": self._serialize_virtual_payment(payment),
             "report_id": order.report_id,
         }
+
+    def _prepare_new_order(self, *, user, report_id: int, amount: int):
+        report = self.report_repository.get_for_user(report_id=report_id, user_id=user.id)
+        if report is None:
+            raise NotFoundError(message="report not found")
+
+        config = self.product_config_repository.get_current()
+        if config is None:
+            raise NotFoundError(message="product config not found")
+        if amount != config.current_amount:
+            raise ValidationError(message="amount mismatch")
+
+        pending_order = self.order_repository.get_pending_for_report(user_id=user.id, report_id=report_id)
+        if pending_order is not None:
+            raise ConflictError(message="duplicate pending order")
+
+        order_id = "ORD{}".format(secrets.token_hex(10).upper())
+        return report, order_id
 
     def detail(self, *, user, order_id: str):
         order = self.order_repository.get_for_user(order_id=order_id, user_id=user.id)
@@ -114,23 +152,34 @@ class OrderService:
         if order.status != "pending":
             raise ConflictError(message="order is not pending")
 
-        payment = self._create_virtual_payment(user=user, order_id=order.order_id, amount=order.amount, platform=platform)
-        self.order_repository.update_prepay(order=order, prepay_id=payment.outTradeNo)
-        self.db.commit()
+        if order.channel == "wechat_virtual":
+            payment = self._create_virtual_payment(user=user, order_id=order.order_id, amount=order.amount, platform=platform)
+            self.order_repository.update_prepay(order=order, prepay_id=payment.outTradeNo)
+            self.db.commit()
+            return {
+                "amount": order.amount,
+                "order_id": order.order_id,
+                "payment_provider": "wechat_virtual",
+                "payment_debug": {
+                    "has_mode": bool(payment.mode),
+                    "has_sign_data": bool(payment.signData),
+                    "has_pay_sig": bool(payment.paySig),
+                    "has_signature": bool(payment.signature),
+                    "offer_id": payment.offerId,
+                },
+                "payment_params": self._serialize_virtual_payment(payment),
+                "virtual_payment_params": self._serialize_virtual_payment(payment),
+                "report_id": order.report_id,
+            }
 
+        payment = self.wechat_pay_client.create_prepay(order_id=order.order_id, amount=order.amount, openid=user.openid)
+        self.order_repository.update_prepay(order=order, prepay_id=payment.prepay_id)
+        self.db.commit()
         return {
             "amount": order.amount,
             "order_id": order.order_id,
-            "payment_provider": "wechat_virtual",
-            "payment_debug": {
-                "has_mode": bool(payment.mode),
-                "has_sign_data": bool(payment.signData),
-                "has_pay_sig": bool(payment.paySig),
-                "has_signature": bool(payment.signature),
-                "offer_id": payment.offerId,
-            },
-            "payment_params": self._serialize_virtual_payment(payment),
-            "virtual_payment_params": self._serialize_virtual_payment(payment),
+            "payment_provider": "wechat",
+            "payment_params": self._serialize_payment(payment),
             "report_id": order.report_id,
         }
 
@@ -138,15 +187,18 @@ class OrderService:
         order = self.order_repository.get_for_user(order_id=order_id, user_id=user.id)
         if order is None:
             raise NotFoundError(message="order not found")
-        query_result = self.wechat_pay_client.query_virtual_order(order_id=order.order_id, openid=user.openid)
-        if not query_result.is_paid:
-            raise ValidationError(message="payment not successful")
-        if query_result.amount and query_result.amount != order.amount:
-            raise ValidationError(message="amount mismatch")
-
-        self._fulfill_order(order=order, paid_at=paid_at or query_result.paid_at)
+        if order.channel == "wechat_virtual":
+            query_result = self.wechat_pay_client.query_virtual_order(order_id=order.order_id, openid=user.openid)
+            if not query_result.is_paid:
+                raise ValidationError(message="payment not successful")
+            if query_result.amount and query_result.amount != order.amount:
+                raise ValidationError(message="amount mismatch")
+            self._fulfill_order(order=order, paid_at=paid_at or query_result.paid_at)
+        else:
+            self._fulfill_order(order=order, paid_at=paid_at)
         self.db.commit()
-        self._notify_wechat_goods_provided(order_id=order.order_id)
+        if order.channel == "wechat_virtual":
+            self._notify_wechat_goods_provided(order_id=order.order_id)
         return {
             "amount": order.amount,
             "order_id": order.order_id,
@@ -189,6 +241,7 @@ class OrderService:
             buyer_user=buyer_user,
             order=order,
         )
+
     def _notify_wechat_goods_provided(self, *, order_id: str):
         try:
             self.wechat_pay_client.notify_virtual_goods_provided(order_id=order_id)
@@ -223,6 +276,16 @@ class OrderService:
             platform=platform,
             session_key=self._get_user_session_key(user),
         )
+
+    def _serialize_payment(self, payment):
+        return {
+            "timeStamp": payment.timeStamp,
+            "nonceStr": payment.nonceStr,
+            "package": payment.package,
+            "signType": payment.signType,
+            "paySign": payment.paySign,
+            "prepay_id": payment.prepay_id,
+        }
 
     def _serialize_virtual_payment(self, payment):
         return {

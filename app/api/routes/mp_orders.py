@@ -57,6 +57,24 @@ def create_order(
     return mp_response(data=data, user_info={"open_id": user.openid, "user_id": user.id})
 
 
+@router.post("/mp/orders/virtual")
+def create_virtual_order(
+    request: Request,
+    body: MPCreateOrderReq,
+    current=Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+    wechat_pay_client=Depends(get_wechat_pay_client),
+):
+    user, _ = current
+    data = OrderService(db, wechat_pay_client, settings=request.app.state.settings).create_virtual_order(
+        user=user,
+        report_id=body.report_id,
+        amount=body.amount,
+        platform=body.platform or "android",
+    )
+    return mp_response(data=data, user_info={"open_id": user.openid, "user_id": user.id})
+
+
 @router.post("/mp/orders/detail")
 def order_detail(
     request: Request,
