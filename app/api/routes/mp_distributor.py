@@ -108,6 +108,18 @@ def distributor_withdraw(
     return mp_response(data=data, user_info={"open_id": user.openid, "user_id": user.id})
 
 
+@router.post("/mp/distributor/withdrawals/virtual_create")
+def distributor_virtual_withdraw(
+    request: Request,
+    body: MPDistributorWithdrawReq,
+    current=Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    user, _ = current
+    data = _distributor_service(request, db).create_virtual_withdrawal(user=user, amount=body.amount)
+    return mp_response(data=data, user_info={"open_id": user.openid, "user_id": user.id})
+
+
 @router.post("/mp/distributor/withdrawals/status")
 def distributor_withdrawal_status(
     request: Request,
@@ -117,6 +129,31 @@ def distributor_withdrawal_status(
 ):
     user, _ = current
     data = _distributor_service(request, db).refresh_withdrawal_status(user=user, withdraw_id=body.withdraw_id)
+    return mp_response(data=data, user_info={"open_id": user.openid, "user_id": user.id})
+
+
+@router.post("/mp/distributor/withdrawals/virtual_status")
+def distributor_virtual_withdrawal_status(
+    request: Request,
+    body: MPDistributorWithdrawStatusReq,
+    current=Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    user, _ = current
+    data = _distributor_service(request, db).refresh_virtual_withdrawal_status(user=user, withdraw_id=body.withdraw_id)
+    return mp_response(data=data, user_info={"open_id": user.openid, "user_id": user.id})
+
+
+@router.post("/mp/distributor/withdrawals/virtual_balance")
+def distributor_virtual_withdrawal_balance(
+    request: Request,
+    body: dict = Body(default_factory=dict),
+    current=Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    del body
+    user, _ = current
+    data = _distributor_service(request, db).virtual_withdrawal_balance(user=user)
     return mp_response(data=data, user_info={"open_id": user.openid, "user_id": user.id})
 
 

@@ -71,6 +71,50 @@ def test_mp_orders_virtual_create_returns_virtual_payment_params(client, db_sess
     assert virtual_params["signature"]
 
 
+def test_mp_orders_virtual_confirm_marks_order_paid(client, db_session):
+    seed_product_config(db_session)
+    report_response = create_logged_in_report(client)
+    report_id = report_response.json()["data"]["report_id"]
+    create_response = client.post(
+        "/api/v1/mp/orders/virtual",
+        headers=auth_headers(),
+        json={"report_id": report_id, "amount": 9900},
+    )
+    order_id = create_response.json()["data"]["order_id"]
+
+    response = client.post(
+        "/api/v1/mp/orders/virtual_confirm",
+        headers=auth_headers(),
+        json={"order_id": order_id},
+    )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["order_id"] == order_id
+    assert data["status"] == "paid"
+
+
+def test_mp_orders_virtual_confirm_rejects_normal_order(client, db_session):
+    seed_product_config(db_session)
+    report_response = create_logged_in_report(client)
+    report_id = report_response.json()["data"]["report_id"]
+    create_response = client.post(
+        "/api/v1/mp/orders",
+        headers=auth_headers(),
+        json={"report_id": report_id, "amount": 9900},
+    )
+    order_id = create_response.json()["data"]["order_id"]
+
+    response = client.post(
+        "/api/v1/mp/orders/virtual_confirm",
+        headers=auth_headers(),
+        json={"order_id": order_id},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["message"] == "order is not virtual payment"
+
+
 def test_mp_orders_create_rejects_amount_mismatch(client, db_session):
     seed_product_config(db_session)
     report_response = create_logged_in_report(client)

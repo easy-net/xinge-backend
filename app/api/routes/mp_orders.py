@@ -133,6 +133,23 @@ def order_confirm(
     return mp_response(data=data, user_info={"open_id": user.openid, "user_id": user.id})
 
 
+@router.post("/mp/orders/virtual_confirm")
+def order_virtual_confirm(
+    request: Request,
+    body: MPOrderConfirmReq,
+    current=Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+    wechat_pay_client=Depends(get_wechat_pay_client),
+):
+    user, _ = current
+    data = OrderService(db, wechat_pay_client, settings=request.app.state.settings).confirm_virtual_paid(
+        user=user,
+        order_id=body.order_id,
+        paid_at=body.paid_at or "",
+    )
+    return mp_response(data=data, user_info={"open_id": user.openid, "user_id": user.id})
+
+
 @router.post("/mp/orders/notify/wechat")
 async def wechat_notify(
     request: Request,

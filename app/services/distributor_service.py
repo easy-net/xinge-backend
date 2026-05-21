@@ -260,6 +260,91 @@ class DistributorService:
             **self._build_withdrawal_status_meta(withdraw, transfer_state=getattr(transfer_result, "state", "")),
         }
 
+    def create_virtual_withdrawal(self, *, user, amount: int):
+        profile = self._require_distributor(user)
+        if amount <= 0:
+            raise ValidationError(message="amount must be greater than 0")
+
+        withdrawable_amount = max(profile.unsettled_commission, 0)
+        if amount > withdrawable_amount:
+            raise ValidationError(message="withdraw amount exceeds available balance")
+
+        receiver_name = (user.nickname or user.phone_masked or "微信用户{}".format(user.id)).strip()
+        receiver_masked = self._mask_wechat_account(user)
+        logging.getLogger(__name__).info(
+            "distributor.virtual_withdraw.create_start user_id=%s amount=%s withdrawable_before=%s channel=virtual",
+            user.id,
+            amount,
+            profile.unsettled_commission,
+        )
+
+        profile.unsettled_commission = max(profile.unsettled_commission - amount, 0)
+        profile.total_withdrawn_amount += amount
+        withdraw = self.repository.create_withdrawal(
+            user_id=user.id,
+            withdraw_id=self._build_withdraw_id(user.id),
+            amount=amount,
+            account_name=receiver_name,
+            bank_name="虚拟资产",
+            bank_account_masked=receiver_masked,
+            transfer_bill_no="virtual-{}".format(secrets.token_hex(8)),
+            status="paid",
+        )
+        self.repository.update_withdrawal_status(
+            withdrawal=withdraw,
+            status="paid",
+            completed_at=datetime.utcnow(),
+            fail_reason="",
+        )
+        self._record_withdrawal_event(
+            withdraw_id=withdraw.withdraw_id,
+            event_type="virtual_created",
+            status=withdraw.status,
+            detail="amount={} withdrawable_before={} withdrawable_after={}".format(
+                amount,
+                withdrawable_amount,
+                profile.unsettled_commission,
+            ),
+            operator="user:{}".format(user.id),
+        )
+        self._record_withdrawal_event(
+            withdraw_id=withdraw.withdraw_id,
+            event_type="virtual_paid",
+            status=withdraw.status,
+            detail="transfer_bill_no={}".format(withdraw.transfer_bill_no),
+            operator="system",
+        )
+        self.db.commit()
+        logging.getLogger(__name__).info(
+            "distributor.virtual_withdraw.create_done withdraw_id=%s user_id=%s status=%s amount=%s withdrawable_after=%s",
+            withdraw.withdraw_id,
+            user.id,
+            withdraw.status,
+            withdraw.amount,
+            profile.unsettled_commission,
+        )
+        data = self._serialize_virtual_withdrawal_item(withdraw)
+        data["withdrawable_amount_after"] = profile.unsettled_commission
+        data["message"] = "虚拟提现已完成"
+        return data
+
+    def refresh_virtual_withdrawal_status(self, *, user, withdraw_id: str):
+        self._require_distributor(user)
+        withdrawal = self.repository.get_withdrawal_by_withdraw_id(withdraw_id=withdraw_id)
+        if withdrawal is None or withdrawal.user_id != user.id:
+            raise NotFoundError(message="withdrawal not found")
+        return self._serialize_virtual_withdrawal_item(withdrawal)
+
+    def virtual_withdrawal_balance(self, *, user):
+        profile = self._require_distributor(user)
+        return {
+            "channel": "virtual",
+            "total_commission": profile.total_commission,
+            "total_withdrawn_amount": profile.total_withdrawn_amount,
+            "unsettled_commission": profile.unsettled_commission,
+            "withdrawable_amount": max(profile.unsettled_commission, 0),
+        }
+
     def list_withdrawals(self, *, user, page: int, page_size: int):
         self._require_distributor(user)
         items, total = self.repository.list_withdrawals_for_user(user_id=user.id, page=page, page_size=page_size)
@@ -1321,6 +1406,19 @@ class DistributorService:
                 transfer_state=getattr(transfer_result, "state", "") if transfer_result else "",
             ),
         }
+
+    def _serialize_virtual_withdrawal_item(self, withdrawal):
+        data = self._serialize_withdrawal_item(withdrawal)
+        data.update({
+            "action_required": "",
+            "channel": "virtual",
+            "channel_name": "虚拟资产",
+            "message": "虚拟提现已完成" if withdrawal.status == "paid" else "",
+            "package_info": "",
+            "status_hint": "虚拟提现已完成" if withdrawal.status == "paid" else data.get("status_hint", ""),
+            "transfer_state": "VIRTUAL_PAID" if withdrawal.status == "paid" else data.get("transfer_state", ""),
+        })
+        return data
 
     def _build_withdrawal_status_meta(self, withdrawal, transfer_state: str = ""):
         normalized_transfer_state = (transfer_state or "").upper() or self._infer_transfer_state_from_event(withdrawal.withdraw_id)

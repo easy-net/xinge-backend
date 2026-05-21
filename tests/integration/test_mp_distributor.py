@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 
 from sqlalchemy import select
 
-from app.db.models.distributor import DistributorApplication, DistributorProfile, DistributorWithdrawal
+from app.db.models.distributor import DistributorApplication, DistributorProfile, DistributorWithdrawal, DistributorWithdrawalEvent
 from app.db.models.report import Report
 from app.db.models.user import User
 
@@ -248,6 +248,64 @@ def test_mp_distributor_withdrawals_requires_distributor_role(client):
 
     assert response.status_code == 403
     assert response.json()["message"] == "distributor access required"
+
+
+def test_mp_distributor_virtual_withdraw_creates_paid_record(client, db_session):
+    user_id = seed_distributor_user(client, db_session)
+
+    response = client.post(
+        "/api/v1/mp/distributor/withdrawals/virtual_create",
+        headers=auth_headers(),
+        json={"amount": 1200},
+    )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["amount"] == 1200
+    assert data["channel"] == "virtual"
+    assert data["channel_name"] == "虚拟资产"
+    assert data["status"] == "paid"
+    assert data["withdrawable_amount_after"] == 2100
+    assert data["message"] == "虚拟提现已完成"
+
+    profile = db_session.execute(select(DistributorProfile).where(DistributorProfile.user_id == user_id)).scalar_one()
+    assert profile.unsettled_commission == 2100
+    assert profile.total_withdrawn_amount == 7800
+
+    withdrawal = db_session.execute(select(DistributorWithdrawal).where(DistributorWithdrawal.withdraw_id == data["withdraw_id"])).scalar_one()
+    assert withdrawal.status == "paid"
+    assert withdrawal.bank_name == "虚拟资产"
+    events = db_session.execute(
+        select(DistributorWithdrawalEvent).where(DistributorWithdrawalEvent.withdraw_id == data["withdraw_id"])
+    ).scalars().all()
+    assert {event.event_type for event in events} == {"virtual_created", "virtual_paid"}
+
+
+def test_mp_distributor_virtual_withdraw_status_and_balance(client, db_session):
+    seed_distributor_user(client, db_session)
+    create_response = client.post(
+        "/api/v1/mp/distributor/withdrawals/virtual_create",
+        headers=auth_headers(),
+        json={"amount": 300},
+    )
+    withdraw_id = create_response.json()["data"]["withdraw_id"]
+
+    status_response = client.post(
+        "/api/v1/mp/distributor/withdrawals/virtual_status",
+        headers=auth_headers(),
+        json={"withdraw_id": withdraw_id},
+    )
+    balance_response = client.post(
+        "/api/v1/mp/distributor/withdrawals/virtual_balance",
+        headers=auth_headers(),
+        json={},
+    )
+
+    assert status_response.status_code == 200
+    assert status_response.json()["data"]["transfer_state"] == "VIRTUAL_PAID"
+    assert balance_response.status_code == 200
+    assert balance_response.json()["data"]["channel"] == "virtual"
+    assert balance_response.json()["data"]["withdrawable_amount"] == 3000
 
 
 def test_mp_distributor_downlines_returns_direct_downlines(client, db_session):

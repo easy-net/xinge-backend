@@ -207,6 +207,38 @@ class OrderService:
             "status": order.status,
         }
 
+    def confirm_virtual_paid(self, *, user, order_id: str, paid_at: str = ""):
+        order = self.order_repository.get_for_user(order_id=order_id, user_id=user.id)
+        if order is None:
+            raise NotFoundError(message="order not found")
+        if order.channel != "wechat_virtual":
+            raise ConflictError(message="order is not virtual payment")
+
+        query_result = self.wechat_pay_client.query_virtual_order(order_id=order.order_id, openid=user.openid)
+        if not query_result.is_paid:
+            raise ValidationError(message="payment not successful")
+        if query_result.amount and query_result.amount != order.amount:
+            raise ValidationError(message="amount mismatch")
+
+        logging.getLogger(__name__).info(
+            "order.virtual_confirm.success order_id=%s user_id=%s amount=%s payment_mode=virtual wx_order_id=%s status=%s",
+            order.order_id,
+            user.id,
+            order.amount,
+            getattr(query_result, "wx_order_id", ""),
+            getattr(query_result, "status", ""),
+        )
+        self._fulfill_order(order=order, paid_at=paid_at or query_result.paid_at)
+        self.db.commit()
+        self._notify_wechat_goods_provided(order_id=order.order_id)
+        return {
+            "amount": order.amount,
+            "order_id": order.order_id,
+            "paid_at": order.paid_at,
+            "report_id": order.report_id,
+            "status": order.status,
+        }
+
     def fulfill_paid_order(self, *, order_id: str, amount: int = 0, paid_at: str = "", notify_wechat: bool = False):
         order = self.order_repository.get_by_order_id(order_id=order_id)
         if order is None:
